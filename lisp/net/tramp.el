@@ -2610,14 +2610,7 @@ Fall back to normal file name handler if no Tramp file name handler exists."
 
       ;; When `tramp-mode' is not enabled, or the file name is quoted,
       ;; we don't do anything.
-      ;; When operation is `expand-file-name', and the first argument
-      ;; is a local absolute file name, we end also here.  Handle the
-      ;; MS Windows case.
-      (funcall
-       (if (and (eq operation 'expand-file-name)
-		(not (string-match-p "\\`[[:alpha:]]:/" (car args))))
-	   #'tramp-drop-volume-letter #'identity)
-       (tramp-run-real-handler operation args)))))
+      (tramp-run-real-handler operation args))))
 
 (defun tramp-completion-file-name-handler (operation &rest args)
   "Invoke Tramp file name completion handler for OPERATION and ARGS.
@@ -4362,7 +4355,7 @@ of."
 	   (t (tramp-compat-time-equal-p mt tramp-time-doesnt-exist))))))))
 
 (defun tramp-handle-write-region
-  (start end filename &optional append visit lockname mustbenew)
+  (start end filename &optional append visit _lockname mustbenew)
   "Like `write-region' for Tramp files."
   (setq filename (expand-file-name filename))
   (with-parsed-tramp-file-name filename nil
@@ -4393,7 +4386,7 @@ of."
       ;; We say `no-message' here because we don't want the visited file
       ;; modtime data to be clobbered from the temp file.  We call
       ;; `set-visited-file-modtime' ourselves later on.
-      (write-region start end tmpfile append 'no-message lockname)
+      (write-region start end tmpfile append 'no-message)
       (condition-case nil
 	  (rename-file tmpfile filename 'ok-if-already-exists)
 	(error
