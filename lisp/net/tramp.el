@@ -700,7 +700,7 @@ The regexp should match at end of buffer."
 ;; Yubikey requires the user physically to touch the device with their
 ;; finger.  We must tell it to the user.
 (defcustom tramp-yubikey-regexp
-  "^\r*Confirm user presence for key .*\r*"
+  "^\r*Confirm user presence for key .*[\r\n]*"
   "Regular expression matching yubikey confirmation message.
 The regexp should match at end of buffer."
   :version "28.1"
@@ -3665,6 +3665,7 @@ User is always nil."
 		 #'find-backup-file-name (list filename)))
         ;; Protect against security hole.
 	(when (and (not tramp-allow-unsafe-temporary-files)
+		   (not backup-inhibited)
 		   (file-in-directory-p (car result) temporary-file-directory)
 		   (zerop (or (tramp-compat-file-attribute-user-id
 			       (file-attributes filename 'integer))
@@ -3885,6 +3886,7 @@ Return nil when there is no lockfile."
 	;; Protect against security hole.
 	(with-parsed-tramp-file-name file nil
 	  (when (and (not tramp-allow-unsafe-temporary-files)
+		     create-lockfiles
 		     (file-in-directory-p lockname temporary-file-directory)
 		     (zerop (or (tramp-compat-file-attribute-user-id
 				 (file-attributes file 'integer))
@@ -4684,17 +4686,15 @@ The terminal type can be configured with `tramp-terminal-type'."
   "Show the user a message for confirmation.
 Wait, until the connection buffer changes."
   (with-current-buffer (process-buffer proc)
-    (let ((enable-recursive-minibuffers t)
-          (stimers (with-timeout-suspend)))
+    (let ((stimers (with-timeout-suspend)))
       (tramp-message vec 6 "\n%s" (buffer-string))
       (goto-char (point-min))
       (tramp-check-for-regexp proc tramp-process-action-regexp)
-      (tramp-message
-       vec 0 "%s" (replace-regexp-in-string "\r" "" (match-string 1)))
-      ;; Hide message.
-      (narrow-to-region (point-max) (point-max))
-      ;; Wait for new output.
-      (tramp-wait-for-regexp proc 30 ".")
+      (with-temp-message (replace-regexp-in-string "[\r\n]" "" (match-string 0))
+	;; Hide message in buffer.
+	(narrow-to-region (point-max) (point-max))
+	;; Wait for new output.
+	(tramp-wait-for-regexp proc 30 "."))
       ;; Reenable the timers.
       (with-timeout-unsuspend stimers)))
   t)
@@ -5427,6 +5427,7 @@ this file, if that variable is non-nil."
 	  (setq result (tramp-run-real-handler #'make-auto-save-file-name nil))
 	;; Protect against security hole.
 	(when (and (not tramp-allow-unsafe-temporary-files)
+		   auto-save-default
 		   (file-in-directory-p result temporary-file-directory)
 		   (zerop (or (tramp-compat-file-attribute-user-id
 			       (file-attributes filename 'integer))
