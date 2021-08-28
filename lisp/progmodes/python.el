@@ -2022,7 +2022,12 @@ position, else returns nil."
   (cond ((executable-find "python3") "python3")
         ((executable-find "python") "python")
         (t "python3"))
-  "Default Python interpreter for shell."
+  "Default Python interpreter for shell.
+
+Some Python interpreters also require changes to
+`python-shell-interpreter-args'.  In particular, setting
+`python-shell-interpreter' to \"ipython3\" requires setting
+`python-shell-interpreter-args' to \"--simple-prompt\"."
   :version "28.1"
   :type 'string
   :group 'python)
@@ -3085,7 +3090,8 @@ t when called interactively."
    (list (read-string "Python command: ") nil t))
   (let ((process (or process (python-shell-get-process-or-error msg))))
     (if (string-match ".\n+." string)   ;Multiline.
-        (let* ((temp-file-name (python-shell--save-temp-file string))
+        (let* ((temp-file-name (with-current-buffer (process-buffer process)
+                                 (python-shell--save-temp-file string)))
                (file-name (or (buffer-file-name) temp-file-name)))
           (python-shell-send-file file-name process temp-file-name t))
       (comint-send-string process string)
