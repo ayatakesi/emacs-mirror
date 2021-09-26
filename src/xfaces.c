@@ -674,7 +674,8 @@ clear_face_cache (bool clear_fonts_p)
 	{
 	  struct frame *f = XFRAME (frame);
 	  if (FRAME_WINDOW_P (f)
-	      && FRAME_DISPLAY_INFO (f)->n_fonts > CLEAR_FONT_TABLE_NFONTS)
+	      && FRAME_DISPLAY_INFO (f)->n_fonts > CLEAR_FONT_TABLE_NFONTS
+	      && !f->inhibit_clear_image_cache)
 	    {
 	      clear_font_cache (f);
 	      free_all_realized_faces (frame);
@@ -2419,11 +2420,11 @@ evaluate_face_filter (Lisp_Object filter, struct window *w,
 /* Determine whether FACE_REF is a "filter" face specification (case
    #4 in merge_face_ref).  If it is, evaluate the filter, and if the
    filter matches, return the filtered face spec.  If the filter does
-   not match, return `nil'.  If FACE_REF is not a filtered face
+   not match, return nil.  If FACE_REF is not a filtered face
    specification, return FACE_REF.
 
    On error, set *OK to false, having logged an error message if
-   ERR_MSGS is true, and return `nil'.  Otherwise, *OK is not touched.
+   ERR_MSGS is true, and return nil.  Otherwise, *OK is not touched.
 
    W is either NULL or a window used to evaluate filters.  If W is
    NULL, no window-based face specification filter matches.
@@ -2708,7 +2709,7 @@ merge_face_ref (struct window *w,
 		{
 		  if (EQ (value, Qt))
 		    value = make_fixnum (1);
-		  if (FIXNUMP (value)
+		  if ((FIXNUMP (value) && XFIXNUM (value) != 0)
 		      || STRINGP (value)
 		      || CONSP (value)
 		      || NILP (value))

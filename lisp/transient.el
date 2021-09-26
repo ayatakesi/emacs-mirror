@@ -266,7 +266,7 @@ discouraged.
 
 For example, \"=\" is hard to reach using my custom keyboard
 layout, so I substitute \"(\" for that, which is easy to reach
-using a layout optimized for lisp.
+using a layout optimized for Lisp.
 
   (setq transient-substitute-key-function
         (lambda (obj)
@@ -640,7 +640,7 @@ the prototype is stored in the clone's `prototype' slot.")
     :initarg :if-not-derived
     :initform nil
     :documentation "Enable if major-mode does not derive from value."))
-  "Abstract superclass for group and and suffix classes.
+  "Abstract superclass for group and suffix classes.
 
 It is undefined what happens if more than one `if*' predicate
 slot is non-nil."
@@ -729,7 +729,7 @@ slot is non-nil."
 (defclass transient-files (transient-infix) ()
   "Class used for the \"--\" argument.
 All remaining arguments are treated as files.
-They become the value of this this argument.")
+They become the value of this argument.")
 
 ;;;; Group
 
@@ -1289,8 +1289,8 @@ variable instead.")
 
 (defvar transient--exitp nil "Whether to exit the transient.")
 (defvar transient--showp nil "Whether the transient is show in a popup buffer.")
-(defvar transient--helpp nil "Whether help-mode is active.")
-(defvar transient--editp nil "Whether edit-mode is active.")
+(defvar transient--helpp nil "Whether `help-mode' is active.")
+(defvar transient--editp nil "Whether `edit-mode' is active.")
 
 (defvar transient--active-infix nil "The active infix awaiting user input.")
 
@@ -2736,7 +2736,7 @@ Usually only infixes have a value, but see the method for
 (cl-defmethod transient-infix-value ((_   transient-suffix))
   "Return nil, which means \"no value\".
 
-Infix arguments contribute the the transient's value while suffix
+Infix arguments contribute the transient's value while suffix
 commands consume it.  This function is called for suffixes anyway
 because a command that both contributes to the transient's value
 and also consumes it is not completely unconceivable.
@@ -3119,19 +3119,19 @@ and its value is returned to the caller."
       desc)))
 
 (cl-defmethod transient-format-description ((obj transient-group))
-  "Format the description by calling the next method.  If the result
-doesn't use the `face' property at all, then apply the face
-`transient-heading' to the complete string."
+  "Format the description by calling the next method.
+If the result doesn't use the `face' property at all, then apply
+the face `transient-heading' to the complete string."
   (when-let ((desc (cl-call-next-method obj)))
     (if (text-property-not-all 0 (length desc) 'face nil desc)
         desc
       (propertize desc 'face 'transient-heading))))
 
 (cl-defmethod transient-format-description :around ((obj transient-suffix))
-  "Format the description by calling the next method.  If the result
-is nil, then use \"(BUG: no description)\" as the description.
-If the OBJ's `key' is currently unreachable, then apply the face
-`transient-unreachable' to the complete string."
+  "Format the description by calling the next method.
+If the result is nil, then use \"(BUG: no description)\" as the
+description.  If the OBJ's `key' is currently unreachable, then
+apply the face `transient-unreachable' to the complete string."
   (let ((desc (or (cl-call-next-method obj)
                   (and (slot-boundp transient--prefix 'suffix-description)
                        (funcall (oref transient--prefix suffix-description)

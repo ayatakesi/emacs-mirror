@@ -1230,7 +1230,8 @@ For example, 9:30am would become 09:30 rather than  9:30."
      ":" minute ampm)))
 
 (defun org-agenda-time-of-day-to-ampm-maybe (time)
-  "Conditionally convert TIME to AM/PM format based on `org-agenda-timegrid-use-ampm'."
+  "Conditionally convert TIME to AM/PM format.
+This is based on `org-agenda-timegrid-use-ampm'."
   (if org-agenda-timegrid-use-ampm
       (org-agenda-time-of-day-to-ampm time)
     time))
@@ -4531,7 +4532,7 @@ is active."
 		      'org-todo-regexp org-todo-regexp
 		      'org-complex-heading-regexp org-complex-heading-regexp
 		      'mouse-face 'highlight
-		      'help-echo (format "mouse-2 or RET jump to location")))
+		      'help-echo "mouse-2 or RET jump to location"))
 	 (full-words org-agenda-search-view-force-full-words)
 	 (org-agenda-text-search-extra-files org-agenda-text-search-extra-files)
 	 regexp rtn rtnall files file pos inherited-tags
@@ -8842,7 +8843,7 @@ Point is in the buffer where the item originated.")
 
 (defun org-agenda-do-in-region (beg end cmd &optional arg force-arg delete)
   "Between region BEG and END, call agenda command CMD.
-When optional argument ARG is non-nil or FORCE-ARG is `t', pass
+When optional argument ARG is non-nil or FORCE-ARG is t, pass
 ARG to CMD.  When optional argument DELETE is non-nil, assume CMD
 deletes the agenda entry and don't move to the next entry."
   (save-excursion
