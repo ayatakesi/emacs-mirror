@@ -3294,17 +3294,6 @@ file:
 
     (add-hook 'foo-mode-hook (lambda () (auto-fill-mode -1))
 
----
-** Indentation of 'cl-flet' and 'cl-labels' has changed.
-These forms now indent like this:
-
-    (cl-flet ((bla (x)
-		(* x x)))
-      (bla 42))
-
-This change also affects 'cl-macrolet', 'cl-flet*' and
-'cl-symbol-macrolet'.
-
 
 * Incompatible Lisp Changes in Emacs 28.1
 
