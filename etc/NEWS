@@ -157,6 +157,23 @@ as single glyphs instead of multiple ones.  'Noto Color Emoji' is one
 such suitable font.
 
 +++
+** Composition of emoji has been improved.
+If autocomposition is triggered by an emoji character, then the emoji
+font is now used to check if composition can be performed, rather than
+the font of the first character of the string being composed.  This
+allows e.g.
+
+'Emoji codepoint' + VS-16
+
+to be displayed using the emoji font even if 'Emoji codepoint' does
+not have emoji presentation by default.
+
++++
+** 'glyphless-char-display-control' now applies to Variation Selectors.
+VS-1 through VS-16 are now displayed as 'thin-space' by default when
+not composed.
+
++++
 ** New command 'execute-extended-command-for-buffer'.
 This new command, bound to 'M-S-x', works like
 'execute-extended-command', but limits the set of commands to the
@@ -485,7 +502,7 @@ the tab bar displays tab groups.
 
 ---
 *** New optional key binding for 'tab-last'.
-If you customize the variable 'tab-bar-select-tab-modifiers' for
+If you customize the user option 'tab-bar-select-tab-modifiers' for
 selecting tabs using its index numbers, the '<MODIFIER>-9' key is
 bound to 'tab-last', and switches to the last tab.  Here <MODIFIER> is
 any of the modifiers in the list that is the value of
@@ -622,7 +639,7 @@ functions.
 New command 'help-view-source' ('s') will view the source file (if
 any) of the current help topic.  New command 'help-goto-info' ('i')
 will look up the current symbol (if any) in Info.  New command
-'help-customize' ('c') will customize the variable or the face
+'help-customize' ('c') will customize the user option or the face
 (if any) whose doc string is being shown in the Help buffer.
 
 ---
@@ -796,7 +813,7 @@ user-visible changes for normal usage.
 *** 'global-display-fill-column-indicator-mode' skips some buffers.
 By default, turning on 'global-display-fill-column-indicator-mode'
 doesn't turn on 'display-fill-column-indicator-mode' in special-mode
-buffers.  This can be controlled by customizing the variable
+buffers.  This can be controlled by customizing the user option
 'global-display-fill-column-indicator-modes'.
 
 +++
@@ -940,7 +957,11 @@ for CJK text mixed with Latin text.
 +++
 ** New command 'undo-redo'.
 It undoes previous undo commands, but doesn't record itself as an
-undoable command.
+undoable command.  It is bound to 'C-?' and 'C-M-_', the first binding
+works well in graphical mode, and the second one is easy to hit on tty.
+
+For full conventional undo/redo behavior, you can also customize the
+user option 'undo-no-redo' to t.
 
 +++
 ** New commands 'copy-matching-lines' and 'kill-matching-lines'.
@@ -983,7 +1004,7 @@ Revert a buffer trying to be as non-destructive as possible,
 preserving markers, properties and overlays.  The new variable
 'revert-buffer-with-fine-grain-max-seconds' specifies the maximum
 number of seconds that 'revert-buffer-with-fine-grain' should spend
-trying to be non-destructive.
+trying to be non-destructive, with a default value of 2 seconds.
 
 +++
 ** New command 'revert-buffer-quick'.
@@ -1060,10 +1081,17 @@ This command is bound to 'C-x C-k d'.
 It used to be enabled when Emacs is started in GUI mode but not when started
 in text mode.  The cursor still only actually blinks in GUI frames.
 
+** 'show-paren-mode' is now enabled by default.
+To go back to the previous behavior, customize the user option by the
+same name to nil.
+
 +++
 ** New minor mode 'show-paren-local-mode'.
 It serves as a local counterpart for 'show-paren-mode', allowing you
-to toggle it separately in different buffers.
+to toggle it separately in different buffers.  To use it only in
+programming modes, for example, add the following to your init file:
+
+(add-hook 'prog-mode-hook #'show-paren-local-mode)
 
 
 * Changes in Specialized Modes and Packages in Emacs 28.1
@@ -1161,6 +1189,7 @@ for a list of supported suffixes.
 ---
 *** Broken and circular links are shown with the 'dired-broken-symlink' face.
 
+---
 *** '=' ('dired-diff') will now put all backup files into the 'M-n' history.
 When using '=' on a file with backup files, the default file to use
 for diffing is the newest backup file.  You can now use 'M-n' to quickly
@@ -1181,6 +1210,7 @@ If set to non-nil, Dired will dereference symbolic links when copying.
 This can be switched off on a per-usage basis by providing
 'dired-do-copy' with a 'C-u' prefix.
 
+---
 *** New user option 'dired-do-revert-buffer'.
 Non-nil reverts the destination Dired buffer after performing one
 of these operations: 'dired-do-copy', 'dired-do-rename',
@@ -1226,6 +1256,10 @@ Additionally, users can change the meaning of other motion commands
 during I-search by using their 'isearch-motion' property.  The
 option 'isearch-motion-changes-direction' controls whether the
 direction of the search changes after a motion command.
+
++++
+** Emacs 28.1 comes with Org v9.5.
+See the file ORG-NEWS for user-visible changes in Org.
 
 ** Outline
 
@@ -1420,6 +1454,13 @@ is t by default; set to nil to get back the old behavior.
 If 'numeric', calendar functions (eg 'calendar-sunrise-sunset') that display
 time zones will use a form like "+0100" instead of "CET".
 
+** Imenu
+
++++
+*** New user option 'imenu-max-index-time'.
+If creating the imenu index takes longer than specified by this
+option (default 5 seconds), imenu indexing is stopped.
+
 ** ido
 
 ---
@@ -1441,7 +1482,7 @@ default predicate (replacing 'so-long-detected-long-line-p').
 
 ---
 *** Default values 'so-long-threshold' and 'so-long-max-lines' increased.
-The values of these variables have been raised to 10000 bytes and 500
+The values of these user options have been raised to 10000 bytes and 500
 lines respectively, to reduce the likelihood of false-positives when
 'global-so-long-mode' is enabled.  The latter value is now only used
 by the old predicate, as the new predicate knows the longest line in
@@ -1541,6 +1582,10 @@ This allows users to use (define-key eshell-mode-map ...) as usual.
 Some modules have their own minor mode now to account for these
 changes.
 
+*** Support for bookmark.el.
+The command `bookmark-set' (bound to `C-x r m') is now supported, and
+will create a bookmark that opens the current directory in Eshell.
+
 ** Archive mode
 
 ---
@@ -1589,8 +1634,10 @@ either an internal or external browser.
 If a remote file is specified, a local temporary copy of that file is
 passed to the browser.
 
+---
 *** Support for the conkeror browser is now obsolete.
 
+---
 *** Support for the Mosaic browser has been removed.
 This support has been obsolete since 25.1.
 
@@ -1608,28 +1655,6 @@ at the left hand side followed by the function name.  This is intended
 to make better use of the horizontal space, in particular eliminating
 the truncation of function names.  There is no way to get the former
 layout back.
-
-** Python mode
-
----
-*** New user option 'python-forward-sexp-function'.
-This allows the user easier customization of whether to use block-based
-navigation or not.
-
----
-*** 'python-shell-interpreter' now defaults to python3 on systems with python3.
-
----
-*** 'C-c C-r' can now be used on arbitrary regions.
-The command previously extended the start of the region to the start
-of the line, but will now actually send the marked region, as
-documented.
-
-** Perl mode
-
----
-*** New face 'perl-non-scalar-variable'.
-This is used to fontify non-scalar variables.
 
 ** Icomplete
 
@@ -1939,7 +1964,8 @@ This is used when forwarding messages as MIME, but not using MML.
 *** Message now supports the OpenPGP header.
 To generate these headers, add the new function
 'message-add-openpgp-header' to 'message-send-hook'.  The header will
-be generated according to the new 'message-openpgp-header' variable.
+be generated according to the new 'message-openpgp-header' user
+option.
 
 ---
 *** A change to how "Mail-Copies-To: never" is handled.
@@ -2141,7 +2167,7 @@ regexp instead.
 ---
 *** New user option 'compilation-search-all-directories'.
 When doing parallel builds, directories and compilation errors may
-arrive in the "*compilation*" buffer out-of-order.  If this variable is
+arrive in the "*compilation*" buffer out-of-order.  If this option is
 non-nil (the default), Emacs will now search backwards in the buffer
 for any directory the file with errors may be in.  If nil, this won't
 be done (and this restores how this previously worked).
@@ -2366,6 +2392,11 @@ The function that is invoked when clicking on or otherwise following a
 'mailto:' link in an EWW buffer can now be customized.  For more
 information, see the related entry about 'shr-browse-url' above.
 
+---
+*** Support for bookmark.el.
+The command `bookmark-set' (bound to `C-x r m') is now supported, and
+will create a bookmark that opens the current URL in EWW.
+
 ** SHR
 
 ---
@@ -2382,9 +2413,9 @@ If this user option is non-nil, and 'shr-width' is nil, then SHR will
 use the value of 'shr-max-width' to limit the width of the rendered
 HTML.  The default is 120 characters, so even if you have very wide
 frames, HTML text will be rendered more narrowly, which usually leads
-to a more readable text.  Set this user option to nil to get the
-previous behavior of rendering as wide as the 'window-width' allows.
-If 'shr-width' is non-nil, it overrides this variable.
+to a more readable text.  Customize it to nil to get the previous
+behavior of rendering as wide as the 'window-width' allows.  If
+'shr-width' is non-nil, it overrides this option.
 
 ---
 *** New faces for heading elements.
@@ -2554,9 +2585,9 @@ truncation, amongst other things.
 ---
 *** Bug reference mode uses auto-setup.
 If 'bug-reference-mode' or 'bug-reference-prog-mode' have been
-activated, their respective hook has been run and still
-'bug-reference-bug-regexp' and 'bug-reference-url-format' aren't both
-set, it tries to guess appropriate values for those two variables.
+activated, their respective hook has been run, and both
+'bug-reference-bug-regexp' and 'bug-reference-url-format' are still
+not set, it tries to guess appropriate values for those two variables.
 There are three guessing mechanisms so far: based on version control
 information of the current buffer's file, based on
 newsgroup/mail-folder name and several news and mail message headers
@@ -2685,6 +2716,35 @@ The old names are now obsolete.
 *** 'world-clock-mode' can no longer be turned on interactively.
 Use 'world-clock' to turn on that mode.
 
+** Python mode
+
+---
+*** New user option 'python-forward-sexp-function'.
+This allows the user easier customization of whether to use block-based
+navigation or not.
+
+---
+*** 'python-shell-interpreter' now defaults to python3 on systems with python3.
+
+---
+*** 'C-c C-r' can now be used on arbitrary regions.
+The command previously extended the start of the region to the start
+of the line, but will now actually send the marked region, as
+documented.
+
+** Ruby Mode
+
+---
+*** 'ruby-use-smie' is declared obsolete.
+SMIE is now always enabled and 'ruby-use-smie' only controls whether
+indentation is done using SMIE or with the old ad-hoc code.
+
+---
+*** Indentation has changed when 'ruby-align-chained-calls' is non-nil.
+This previously used to align subsequent lines with the last sibling,
+but it now aligns with the first sibling (which is the preferred style
+in Ruby).
+
 ** CPerl Mode
 
 ---
@@ -2695,6 +2755,12 @@ Use 'world-clock' to turn on that mode.
 This value customizes Emacs to use the style recommended in Damian
 Conway's book "Perl Best Practices" for indentation and formatting
 of conditionals.
+
+** Perl mode
+
+---
+*** New face 'perl-non-scalar-variable'.
+This is used to fontify non-scalar variables.
 
 ** Octave Mode
 
@@ -2784,16 +2850,12 @@ Allowed inputs are seconds or ISO8601-like periods like "1h" or "4h30m".
 Italic text is displayed in the new 'erc-italic-face'.
 
 ---
-*** The erc-compat.el library is now marked obsolete.
-This file contained ERC compatibility code for Emacs 21 and XEmacs
-which is no longer needed.
-
----
 *** erc-match.el now supports 'message' highlight type (not including the nick).
 The 'erc-current-nick-highlight-type', 'erc-pal-highlight-type',
 'erc-fool-highlight-type', 'erc-keyword-highlight-type', and
-'erc-dangerous-host-highlight-type' variables now support a 'message'
-type for highlighting the entire message but not the sender's nick.
+'erc-dangerous-host-highlight-type' user options now support a
+'message' type for highlighting the entire message but not the
+sender's nick.
 
 ---
 *** erc-status-sidebar.el is now part of ERC.
@@ -2822,6 +2884,15 @@ separated) and clearer documentation.
 The new '/opme' convenience command asks ChanServ to set the operator
 status for the current nick in the current channel, and '/deopme'
 unsets it.
+
+---
+*** Add '/wii' convenience command for whois with idle time.
+The new '/wii' convenience command calls the '/whois' command with the
+given nick as both arguments, which is useful for displaying the whois
+information for the nick along with idle time, even if the nick is on
+a different server than the one the current user is connected to.
+Using the given nick itself instead of the server it is connected to
+is not standardized, but is widely supported across IRC networks.
 
 ** xwidget-webkit mode
 
@@ -2917,8 +2988,8 @@ The old binding is supported but warns that it is obsolete.
 'mh-blacklist-msg-hook' is renamed 'mh-blocklist-msg-hook'.
 
 +++
-*** New names for some variables.
-Variable 'mh-whitelist-preserves-sequences-flag' is renamed
+*** New names for some user options.
+User option 'mh-whitelist-preserves-sequences-flag' is renamed
 'mh-allowlist-preserves-sequences-flag'.
 
 +++
@@ -2932,37 +3003,44 @@ Face 'mh-folder-whitelisted' is renamed 'mh-folder-allowlisted'.
 *** rcirc now supports SASL authentication.
 
 ---
-*** rcirc connects asynchronously
+*** rcirc connects asynchronously.
 
 ---
-*** Integrate formatting into rcirc-send-string
+*** Integrate formatting into 'rcirc-send-string'.
 The function now accepts a variable number of arguments.
 
 +++
-*** Deprecate defun-rcirc-command in favour of rcirc-define-command
+*** Deprecate 'defun-rcirc-command' in favour of 'rcirc-define-command'.
 The new macro handles multiple and optional arguments.
 
 ---
-*** Add basic IRCv3 support
-This includes support for the capabilities: server-time, batch,
-message-ids, invite-notify, multi-prefix and standard-replies.
+*** Add basic IRCv3 support.
+This includes support for the capabilities: 'server-time', 'batch',
+'message-ids', 'invite-notify', 'multi-prefix' and 'standard-replies'.
 
 ---
-*** Add mouse property support to rcirc-track-minor-mode
+*** Add mouse property support to 'rcirc-track-minor-mode'.
 
 ---
-*** Improve support for IRC markup codes
+*** Improve support for IRC markup codes.
 
 ---
-*** Check auth-sources for server passwords
-
----
-*** Allow for channels to hide certain message types right after connecting.
-Set rcirc-omit-responses-after-join analogously to rcirc-omit-responses.
+*** Check 'auth-sources' for server passwords.
 
 +++
-*** Implement repeated reconnection strategy
-See rcirc-reconnect-attempts.
+*** Implement repeated reconnection strategy.
+See 'rcirc-reconnect-attempts'.
+
+** MPC
+
+---
+*** New command 'mpc-goto-playing-song'.
+This command, bound to 'o' in any 'mpc-mode' buffer, moves point to
+the currently playing song in the "*Songs*" buffer.
+
+---
+*** New user option 'mpc-cover-image-re'.
+If non-nil, it is a regexp that should match a valid cover image.
 
 ** Miscellaneous
 
@@ -3065,26 +3143,6 @@ different timezone causing a difference in the date.
 *** Loading dunnet.el in batch mode doesn't start the game any more.
 Instead you need to do "emacs -f dun-batch" to start the game in
 batch mode.
-
-** Ruby Mode
-
----
-** 'ruby-use-smie' is declared obsolete.
-SMIE is now always enabled and 'ruby-use-smie' only controls whether
-indentation is done using SMIE or with the old ad-hoc code.
-
----
-** Indentation has changed when 'ruby-align-chained-calls' is non-nil.
-This previously used to align subsequent lines with the last sibling,
-but it now aligns with the first sibling (which is the preferred style
-in Ruby).
-
-** Imenu
-
-+++
-*** New user option 'imenu-max-index-time'.
-If creating the imenu index takes longer than specified by this
-variable (default 5 seconds), imenu indexing is stopped.
 
 
 * New Modes and Packages in Emacs 28.1
@@ -3235,14 +3293,6 @@ For instance, you could add something like the following to your init
 file:
 
     (add-hook 'foo-mode-hook (lambda () (auto-fill-mode -1))
-
----
-** Indentation of 'cl-flet' and 'cl-labels' has changed.
-These forms now indent like this:
-
-    (cl-flet ((bla (x)
-		(* x x)))
-      (bla 42))
 
 
 * Incompatible Lisp Changes in Emacs 28.1
@@ -3907,6 +3957,17 @@ It can be used to create Lisp strings with arbitrary byte sequences
 (a.k.a. "raw bytes").
 
 +++
+** Shorthands for Lisp symbols.
+Shorthands are a general purpose namespacing system to make Emacs
+Lisp's symbol-naming etiquette easier to use.  A shorthand is any
+symbolic form found in Lisp source that "abbreviates" a symbol's print
+name.  Among other applications, this feature can be used to avoid
+name clashes and namespace pollution by renaming an entire file's
+worth of symbols with proper and longer prefixes, without actually
+touching the Lisp source.  For details, see the manual section
+"(elisp) Shorthands".
+
++++
 ** New function 'string-search'.
 This function takes two string parameters and returns the position of
 the first instance of the former string in the latter.
@@ -4464,7 +4525,7 @@ instances of xwidget webkit is not supported.
 
 ---
 *** Downloading files from xwidget-webkit is now supported.
-The new variable 'xwidget-webkit-download-dir' says where to download to.
+The new user option 'xwidget-webkit-download-dir' says where to download to.
 
 ---
 *** New command 'xwidget-webkit-clone-and-split-below'.
@@ -4475,7 +4536,7 @@ Open a new window below displaying the current URL.
 Open a new window to the right displaying the current URL.
 
 ---
-*** New variable 'xwidget-webkit-enable-plugins'.
+*** New user option 'xwidget-webkit-enable-plugins'.
 If non-nil, enable plugins in xwidget.  (This is only available on
 macOS.)
 
