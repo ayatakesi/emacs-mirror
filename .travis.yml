@@ -1,0 +1,11 @@
+language: minimal
+os: linux
+dist: focal
+branches:
+  only:
+    - /^emacs-doc-ja\/.+$/
+before_install: sudo apt-get install -y texinfo;
+install:
+  - ./autogen.sh
+  - ./configure --with-x-toolkit=no
+  - make
