@@ -1,0 +1,45 @@
+* Description
+This repository intends applying minimal I18N effort to Texinfo files under emacs/doc/* in GNU Emacs distribution.
+
+It is mirrored Emacs repository on git.gnu.savannah.org but includes branches forked from that mirror. These  names are started with "emacs-doc-ja/" (It intends I18N, so -ja may change to -I18N in the future).
+
+For simple briefing(and helping my confused thought), [[./README.png][here] is a simple diagram that shows how this repository will be updated.
+
+#+begin_src plantuml :file README.png
+title emacs-mirror flow diagram
+database "savannah\nemacs.git" as upstream
+actor local as local
+database "github\nemacs-mirror" as origin
+database "travis CI" as CI
+entity "minimal executable" as exe
+
+alt do periodically(every 30min. by crond).
+upstream->local: "pull target branches."
+local->origin: "push target branches."
+end
+
+alt do once only when target branches are cut.
+local->origin: "fork master and emacs-27,28,... branches\n from emacs' repo on savannah to emacs-doc-ja/...."
+local->origin: "add @documentlanguage as en to doc/emacs/docstyle.texi\n in emacs-doc-ja/* branches.\n (by cherry-pick 911eccd1407f2a19aede98882eccad6b625bce85)"
+end
+
+alt do manually by hand.
+local->local: merge target branches commits\n to emacs-doc-ja/*.
+local->origin: push emacs-doc-ja*
+end
+
+alt do conditionaly(match emma-doc-ja*).
+origin-->CI: "build emacs executable by minimal effort(only curiosity meaning)."
+CI->exe
+note right
+sudo apt-get install -y texinfo;
+./autogen.sh
+./configure
+  with-x-toolkit=no
+  with-xpm=ifavailable
+  with-gif=ifavailable
+  with-gnutls=ifavailable
+make
+end note
+end
+#+end_src
