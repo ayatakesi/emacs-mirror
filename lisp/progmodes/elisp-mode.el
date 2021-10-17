@@ -210,7 +210,7 @@ All commands in `lisp-mode-shared-map' are inherited by this map.")
   (emacs-lisp--before-compile-buffer)
   (require 'bytecomp)
   (byte-recompile-file buffer-file-name nil 0)
-  (load buffer-file-name))
+  (load (byte-compile-dest-file buffer-file-name)))
 
 (declare-function native-compile "comp")
 (defun emacs-lisp-native-compile-and-load ()
@@ -548,7 +548,7 @@ in `completion-at-point-functions' (which see)."
                  (lambda (s)
                    (push s retval)
                    (cl-loop
-                    for (shorthand . longhand) in elisp-shorthands
+                    for (shorthand . longhand) in read-symbol-shorthands
                     for full-name = (symbol-name s)
                     when (string-prefix-p longhand full-name)
                     do (let ((sym (make-symbol
@@ -559,17 +559,17 @@ in `completion-at-point-functions' (which see)."
                          (push sym retval)
                          retval))))
                 retval)))
-    (cond ((null elisp-shorthands) obarray)
+    (cond ((null read-symbol-shorthands) obarray)
           ((and obarray-cache
-                (gethash (cons (current-buffer) elisp-shorthands)
+                (gethash (cons (current-buffer) read-symbol-shorthands)
                          obarray-cache)))
           (obarray-cache
-            (puthash (cons (current-buffer) elisp-shorthands)
+            (puthash (cons (current-buffer) read-symbol-shorthands)
                      (obarray-plus-shorthands)
                      obarray-cache))
           (t
             (setq obarray-cache (make-hash-table :test #'equal))
-            (puthash (cons (current-buffer) elisp-shorthands)
+            (puthash (cons (current-buffer) read-symbol-shorthands)
                      (obarray-plus-shorthands)
                      obarray-cache)))))
 
@@ -2126,7 +2126,7 @@ Runs in a batch-mode Emacs.  Interactively use variable
     (pp collected)))
 
 
-(put 'elisp-shorthands 'safe-local-variable #'consp)
+(put 'read-symbol-shorthands 'safe-local-variable #'consp)
 
 (provide 'elisp-mode)
 ;;; elisp-mode.el ends here

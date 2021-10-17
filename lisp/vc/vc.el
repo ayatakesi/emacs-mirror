@@ -1863,13 +1863,10 @@ Return t if the buffer had changes, nil otherwise."
                                             (vc-working-revision first))))
       (when (string= rev1-default "") (setq rev1-default nil))))
     ;; construct argument list
-    (let* ((rev1-prompt (if rev1-default
-                            (concat "Older revision (default "
-                                    rev1-default "): ")
-                          "Older revision: "))
-           (rev2-prompt (concat "Newer revision (default "
-                                ;; (or rev2-default
-                                "current source): "))
+    (let* ((rev1-prompt (format-prompt "Older revision" rev1-default))
+           (rev2-prompt (format-prompt "Newer revision"
+                                       ;; (or rev2-default
+                                       "current source"))
            (rev1 (vc-read-revision rev1-prompt files backend rev1-default))
            (rev2 (vc-read-revision rev2-prompt files backend nil))) ;; rev2-default
       (when (string= rev1 "") (setq rev1 nil))
@@ -2082,7 +2079,7 @@ If `F.~REV~' already exists, use it instead of checking it out again."
    (with-current-buffer (or (buffer-base-buffer) (current-buffer))
      (vc-ensure-vc-buffer)
      (list
-      (vc-read-revision "Revision to visit (default is working revision): "
+      (vc-read-revision (format-prompt "Revision to visit" "working revision")
                         (list buffer-file-name)))))
   (set-buffer (or (buffer-base-buffer) (current-buffer)))
   (vc-ensure-vc-buffer)
@@ -2378,7 +2375,7 @@ This function runs the hook `vc-retrieve-tag-hook' when finished."
              (read-directory-name "Directory: " default-directory nil t))))
      (list
       dir
-      (vc-read-revision "Tag name to retrieve (default latest revisions): "
+      (vc-read-revision (format-prompt "Tag name to retrieve" "latest revisions")
                         (list dir)
                         (vc-responsible-backend dir)))))
   (let* ((backend (vc-responsible-backend dir))
@@ -2864,6 +2861,7 @@ permanent, only for the current session.  This function only changes
 VC's perspective on FILE, it does not register or unregister it.
 By default, this command cycles through the registered backends.
 To get a prompt, use a prefix argument."
+  (declare (obsolete nil "28.1"))
   (interactive
    (list
     (or buffer-file-name
@@ -2918,7 +2916,8 @@ backend to NEW-BACKEND, and unregister FILE from the current backend.
     (if registered
 	(set-file-modes file (logior (file-modes file) 128))
       ;; `registered' might have switched under us.
-      (vc-switch-backend file old-backend)
+      (with-suppressed-warnings ((obsolete vc-switch-backend))
+        (vc-switch-backend file old-backend))
       (let* ((rev (vc-working-revision file))
 	     (modified-file (and edited (make-temp-file file)))
 	     (unmodified-file (and modified-file (vc-version-backup-file file))))
@@ -2937,16 +2936,19 @@ backend to NEW-BACKEND, and unregister FILE from the current backend.
 		    (vc-revert-file file))))
 	      (vc-call-backend new-backend 'receive-file file rev))
 	  (when modified-file
-	    (vc-switch-backend file new-backend)
+            (with-suppressed-warnings ((obsolete vc-switch-backend))
+              (vc-switch-backend file new-backend))
 	    (unless (eq (vc-checkout-model new-backend (list file)) 'implicit)
 	      (vc-checkout file))
 	    (rename-file modified-file file 'ok-if-already-exists)
 	    (vc-file-setprop file 'vc-checkout-time nil)))))
     (when move
-      (vc-switch-backend file old-backend)
+      (with-suppressed-warnings ((obsolete vc-switch-backend))
+        (vc-switch-backend file old-backend))
       (setq comment (vc-call-backend old-backend 'comment-history file))
       (vc-call-backend old-backend 'unregister file))
-    (vc-switch-backend file new-backend)
+    (with-suppressed-warnings ((obsolete vc-switch-backend))
+      (vc-switch-backend file new-backend))
     (when (or move edited)
       (vc-file-setprop file 'vc-state 'edited)
       (vc-mode-line file new-backend)

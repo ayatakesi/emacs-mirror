@@ -714,6 +714,7 @@ REQUIREMENTS is a list of dependencies on other packages.
  where OTHER-VERSION is a string.
 
 EXTRA-PROPERTIES is currently unused."
+  (declare (indent defun))
   ;; FIXME: Placeholder!  Should we keep it?
   (error "Don't call me!"))
 
@@ -1081,8 +1082,7 @@ This assumes that `pkg-desc' has already been activated with
   "Native compile installed package PKG-DESC asynchronously.
 This assumes that `pkg-desc' has already been activated with
 `package-activate-1'."
-  (when (and (featurep 'native-compile)
-             (native-comp-available-p))
+  (when (native-comp-available-p)
     (let ((warning-minimum-level :error))
       (native-compile-async (package-desc-dir pkg-desc) t))))
 

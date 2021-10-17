@@ -93,7 +93,7 @@ Enable the mode if ARG is nil, omitted, or is a positive number.
 Disable the mode if ARG is a negative number.
 
 To check whether the minor mode is enabled in the current buffer,
-evaluate `%S'.
+evaluate `%s'.
 
 The mode's hook is called both when the mode is enabled and when
 it is disabled.")
@@ -109,7 +109,9 @@ it is disabled.")
              (docs-fc (bound-and-true-p emacs-lisp-docstring-fill-column))
              (fill-column (if (integerp docs-fc) docs-fc 65))
              (argdoc (format easy-mmode--arg-docstring mode-pretty-name
-                             getter))
+                             ;; Avoid having quotes turn into pretty quotes.
+                             (string-replace "'" "\\\\='"
+                                             (format "%S" getter))))
              (filled (if (fboundp 'fill-region)
                          (with-temp-buffer
                            (insert argdoc)
@@ -196,6 +198,7 @@ INIT-VALUE LIGHTER KEYMAP.
 
 \(fn MODE DOC [KEYWORD VAL ... &rest BODY])"
   (declare (doc-string 2)
+           (indent defun)
            (debug (&define name string-or-null-p
 			   [&optional [&not keywordp] sexp
 			    &optional [&not keywordp] sexp
@@ -448,7 +451,7 @@ after running the major mode's hook.  However, MODE is not turned
 on if the hook has explicitly disabled it.
 
 \(fn GLOBAL-MODE MODE TURN-ON [KEY VALUE]... BODY...)"
-  (declare (doc-string 2))
+  (declare (doc-string 2) (indent defun))
   (let* ((global-mode-name (symbol-name global-mode))
 	 (mode-name (symbol-name mode))
 	 (pretty-name (easy-mmode-pretty-mode-name mode))

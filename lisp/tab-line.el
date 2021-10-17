@@ -119,7 +119,11 @@ function `tab-line-tab-face-group'."
   :group 'tab-line-faces)
 
 (defface tab-line-highlight
-  '((t :inherit tab-line-tab))
+  '((((class color) (min-colors 88))
+     :box (:line-width 1 :style released-button)
+     :background "grey85"
+     :foreground "black")
+    (t :inverse-video nil))
   "Tab line face for highlighting."
   :version "27.1"
   :group 'tab-line-faces)
@@ -574,7 +578,10 @@ For use in `tab-line-tab-face-functions'."
                           ;; handle tab-line scrolling
                           (window-parameter nil 'tab-line-hscroll)
                           ;; for setting face 'tab-line-tab-current'
-                          (eq (selected-window) (old-selected-window))))
+                          (eq (selected-window) (old-selected-window))
+                          (and (memq 'tab-line-tab-face-modified
+                                     tab-line-tab-face-functions)
+                               (buffer-file-name) (buffer-modified-p))))
          (cache (window-parameter nil 'tab-line-cache)))
     ;; Enable auto-hscroll again after it was disabled on manual scrolling.
     ;; The moment to enable it is when the window-buffer was updated.

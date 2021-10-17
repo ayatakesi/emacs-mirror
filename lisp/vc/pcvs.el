@@ -758,6 +758,7 @@ clear what alternative to use.
 - `DOUBLE' is the generic case."
   (declare (debug (&define sexp lambda-list stringp
                            ("interactive" interactive) def-body))
+           (indent defun)
 	   (doc-string 3))
   (let ((style (cvs-cdr fun))
 	(fun (cvs-car fun)))
@@ -1284,8 +1285,7 @@ marked instead.  A directory can never be marked."
       (intern
        (upcase
 	(completing-read
-	 (concat
-	  "Mark files in state" (if default (concat " [" default "]")) ": ")
+         (format-prompt "Mark files in state" default)
 	 (mapcar (lambda (x)
 		   (list (downcase (symbol-name (car x)))))
 		 cvs-states)

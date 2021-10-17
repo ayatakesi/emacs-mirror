@@ -299,7 +299,7 @@ The information is logged to `byte-compile-log-buffer'."
   '(redefine callargs free-vars unresolved
              obsolete noruntime interactive-only
              make-local mapcar constants suspicious lexical lexical-dynamic
-             docstrings)
+             docstrings not-unused)
   "The list of warning types used when `byte-compile-warnings' is t.")
 (defcustom byte-compile-warnings t
   "List of warnings that the byte-compiler should issue (t for all).
@@ -321,6 +321,7 @@ Elements of the list may be:
               lexically bound variable declared dynamic elsewhere
   make-local  calls to `make-variable-buffer-local' that may be incorrect.
   mapcar      mapcar called for effect.
+  not-unused  warning about using variables with symbol names starting with _.
   constants   let-binding of, or assignment to, constants/nonvariables.
   docstrings  docstrings that are too wide (longer than
               `byte-compile-docstring-max-column' or
@@ -1082,7 +1083,7 @@ If STR is something like \"Buffer foo.el\", return #<buffer foo.el>
 (defconst emacs-lisp-compilation-parse-errors-filename-function
   #'emacs-lisp-compilation-file-name-or-buffer
   "The value for `compilation-parse-errors-filename-function' for when
-we go into emacs-lisp-compilation-mode.")
+we go into `emacs-lisp-compilation-mode'.")
 
 (defcustom emacs-lisp-compilation-search-path '(nil)
   "Directories to search for files named in byte-compile error messages.
@@ -2810,8 +2811,8 @@ not to take responsibility for the actual compilation of the code."
           t)))))
 
 (defun byte-compile-output-as-comment (exp quoted)
-  "Print Lisp object EXP in the output file, inside a comment,
-and return the file (byte) position it will have.
+  "Print Lisp object EXP in the output file, inside a comment.
+Return the file (byte) position it will have.
 If QUOTED is non-nil, print with quoting; otherwise, print without quoting."
   (with-current-buffer byte-compile--outbuffer
     (let ((position (point)))

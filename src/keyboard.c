@@ -2943,20 +2943,8 @@ read_char (int commandflag, Lisp_Object map,
       last_input_event = c;
       call4 (Qcommand_execute, tem, Qnil, Fvector (1, &last_input_event), Qt);
 
-      if (CONSP (c)
-          && (EQ (XCAR (c), Qselect_window)
-              || EQ (XCAR (c), Qfocus_out)
-#ifdef HAVE_DBUS
-	      || EQ (XCAR (c), Qdbus_event)
-#endif
-#ifdef USE_FILE_NOTIFY
-	      || EQ (XCAR (c), Qfile_notify)
-#endif
-#ifdef THREADS_ENABLED
-	      || EQ (XCAR (c), Qthread_event)
-#endif
-	      || EQ (XCAR (c), Qconfig_changed_event))
-          && !end_time)
+      if (CONSP (c) && !NILP (Fmemq (XCAR (c), Vwhile_no_input_ignore_events))
+	  && !end_time)
 	/* We stopped being idle for this event; undo that.  This
 	   prevents automatic window selection (under
 	   mouse-autoselect-window) from acting as a real input event, for
@@ -5122,7 +5110,20 @@ make_lispy_position (struct frame *f, Lisp_Object x, Lisp_Object y,
 #endif
       )
     {
-      posn = EQ (window_or_frame, f->tab_bar_window) ? Qtab_bar : Qtool_bar;
+      /* FIXME: While track_mouse is non-nil, we do not report this
+	 event as something that happened on the tool or tab bar since
+	 that would break mouse dragging operations that originate from
+	 an ordinary window beneath and expect the window to auto-scroll
+	 as soon as the mouse cursor appears above or beneath it
+	 (Bug#50993).  Since this "fix" might break track_mouse based
+	 operations originating from the tool or tab bar itself, such
+	 operations should set track_mouse to some special value that
+	 would be recognized by the following check.
+
+	 This issue should be properly handled by 'mouse-drag-track' and
+	 friends, so the below is only a temporary workaround.  */
+      if (NILP (track_mouse))
+	posn = EQ (window_or_frame, f->tab_bar_window) ? Qtab_bar : Qtool_bar;
       /* Kludge alert: for mouse events on the tab bar and tool bar,
 	 keyboard.c wants the frame, not the special-purpose window
 	 we use to display those, and it wants frame-relative
@@ -5130,7 +5131,8 @@ make_lispy_position (struct frame *f, Lisp_Object x, Lisp_Object y,
       window_or_frame = Qnil;
     }
 #endif
-  if (!FRAME_WINDOW_P (f)
+  if (f
+      && !FRAME_WINDOW_P (f)
       && FRAME_TAB_BAR_LINES (f) > 0
       && my >= FRAME_MENU_BAR_LINES (f)
       && my < FRAME_MENU_BAR_LINES (f) + FRAME_TAB_BAR_LINES (f))
@@ -7840,7 +7842,9 @@ parse_menu_item (Lisp_Object item, int inmenubar)
 	      else if (EQ (tem, QCkeys))
 		{
 		  tem = XCAR (item);
-		  if (CONSP (tem) || STRINGP (tem))
+		  if (FUNCTIONP (tem))
+		    ASET (item_properties, ITEM_PROPERTY_KEYEQ, call0 (tem));
+		  else if (CONSP (tem) || STRINGP (tem))
 		    ASET (item_properties, ITEM_PROPERTY_KEYEQ, tem);
 		}
 	      else if (EQ (tem, QCbutton) && CONSP (XCAR (item)))
@@ -10168,7 +10172,8 @@ read_key_sequence (Lisp_Object *keybuf, Lisp_Object prompt,
 	 use the corresponding lower-case letter instead.  */
       if (NILP (current_binding)
 	  && /* indec.start >= t && fkey.start >= t && */ keytran.start >= t
-	  && FIXNUMP (key))
+	  && FIXNUMP (key)
+	  && translate_upper_case_key_bindings)
 	{
 	  Lisp_Object new_key;
 	  EMACS_INT k = XFIXNUM (key);
@@ -10220,12 +10225,14 @@ read_key_sequence (Lisp_Object *keybuf, Lisp_Object prompt,
 	  int modifiers
 	    = CONSP (breakdown) ? (XFIXNUM (XCAR (XCDR (breakdown)))) : 0;
 
-	  if (modifiers & shift_modifier
-	      /* Treat uppercase keys as shifted.  */
-	      || (FIXNUMP (key)
-		  && (KEY_TO_CHAR (key)
-		      < XCHAR_TABLE (BVAR (current_buffer, downcase_table))->header.size)
-		  && uppercasep (KEY_TO_CHAR (key))))
+	  if (translate_upper_case_key_bindings
+	      && (modifiers & shift_modifier
+		  /* Treat uppercase keys as shifted.  */
+		  || (FIXNUMP (key)
+		      && (KEY_TO_CHAR (key)
+			  < XCHAR_TABLE (BVAR (current_buffer,
+					       downcase_table))->header.size)
+		      && uppercasep (KEY_TO_CHAR (key)))))
 	    {
 	      Lisp_Object new_key
 		= (modifiers & shift_modifier
@@ -11599,6 +11606,27 @@ static const struct event_head head_table[] = {
   {SYMBOL_INDEX (Qselect_window),       SYMBOL_INDEX (Qswitch_frame)}
 };
 
+static Lisp_Object
+init_while_no_input_ignore_events (void)
+{
+  Lisp_Object events = listn (9, Qselect_window, Qhelp_echo, Qmove_frame,
+			      Qiconify_frame, Qmake_frame_visible,
+			      Qfocus_in, Qfocus_out, Qconfig_changed_event,
+			      Qselection_request);
+
+#ifdef HAVE_DBUS
+  events = Fcons (Qdbus_event, events);
+#endif
+#ifdef USE_FILE_NOTIFY
+  events = Fcons (Qfile_notify, events);
+#endif
+#ifdef THREADS_ENABLED
+  events = Fcons (Qthread_event, events);
+#endif
+
+  return events;
+}
+
 static void syms_of_keyboard_for_pdumper (void);
 
 void
@@ -12493,7 +12521,21 @@ If nil, Emacs crashes immediately in response to fatal signals.  */);
 
   DEFVAR_LISP ("while-no-input-ignore-events",
                Vwhile_no_input_ignore_events,
-               doc: /* Ignored events from while-no-input.  */);
+               doc: /* Ignored events from `while-no-input'.
+Events in this list do not count as pending input while running
+`while-no-input' and do not cause any idle timers to get reset when they
+occur.  */);
+  Vwhile_no_input_ignore_events = init_while_no_input_ignore_events ();
+
+  DEFVAR_BOOL ("translate-upper-case-key-bindings",
+               translate_upper_case_key_bindings,
+               doc: /* If non-nil, interpret upper case keys as lower case (when applicable).
+Emacs allows binding both upper and lower case key sequences to
+commands.  However, if there is a lower case key sequence bound to a
+command, and the user enters an upper case key sequence that is not
+bound to a command, Emacs will use the lower case binding.  Setting
+this variable to nil inhibits this behaviour.  */);
+  translate_upper_case_key_bindings = true;
 
   pdumper_do_now_and_after_load (syms_of_keyboard_for_pdumper);
 }

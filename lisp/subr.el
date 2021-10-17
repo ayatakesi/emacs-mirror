@@ -193,7 +193,7 @@ set earlier in the `setq-local'.  The return value of the
   "Define VAR as a buffer-local variable with default value VAL.
 Like `defvar' but additionally marks the variable as being automatically
 buffer-local wherever it is set."
-  (declare (debug defvar) (doc-string 3))
+  (declare (debug defvar) (doc-string 3) (indent 2))
   ;; Can't use backquote here, it's too early in the bootstrap.
   (list 'progn (list 'defvar var val docstring)
         (list 'make-variable-buffer-local (list 'quote var))))
@@ -696,7 +696,7 @@ If N is omitted or nil, remove the last element."
   "Destructively remove `equal' duplicates from LIST.
 Store the result in LIST and return it.  LIST must be a proper list.
 Of several `equal' occurrences of an element in LIST, the first
-one is kept."
+one is kept.  See `seq-uniq' for non-destructive operation."
   (let ((l (length list)))
     (if (> l 100)
         (let ((hash (make-hash-table :test #'equal :size l))
@@ -925,19 +925,158 @@ side-effects, and the argument LIST is not modified."
 
 ;;;; Keymap support.
 
-(defun kbd (keys)
+(defun kbd-valid-p (keys)
+  "Say whether KEYS is a valid `kbd' sequence.
+In particular, this checks the order of the modifiers, and they
+have to be specified in this order:
+
+   A-C-H-M-S-s
+
+which is
+
+   Alt-Control-Hyper-Meta-Shift-super"
+  (declare (pure t) (side-effect-free t))
+  (and (stringp keys)
+       (string-match-p "\\`[^ ]+\\( [^ ]+\\)*\\'" keys)
+       (save-match-data
+         (seq-every-p
+          (lambda (key)
+            ;; Every key might have these modifiers, and they should be
+            ;; in this order.
+            (when (string-match
+                   "\\`\\(A-\\)?\\(C-\\)?\\(H-\\)?\\(M-\\)?\\(S-\\)?\\(s-\\)?"
+                   key)
+              (setq key (substring key (match-end 0))))
+            (or (and (= (length key) 1)
+                     ;; Don't accept control characters as keys.
+                     (not (< (aref key 0) ?\s))
+                     ;; Don't accept Meta'd characters as keys.
+                     (or (multibyte-string-p key)
+                         (not (<= 127 (aref key 0) 255))))
+                (string-match-p "\\`<[A-Za-z0-9]+>\\'" key)
+                (string-match-p
+                 "\\`\\(NUL\\|RET\\|TAB\\|LFD\\|ESC\\|SPC\\|DEL\\)\\'" key)))
+          (split-string keys " ")))))
+
+(defun kbd (keys &optional need-vector)
   "Convert KEYS to the internal Emacs key representation.
 KEYS should be a string in the format returned by commands such
 as `C-h k' (`describe-key').
 This is the same format used for saving keyboard macros (see
 `edmacro-mode').
 
-For an approximate inverse of this, see `key-description'."
-  ;; Don't use a defalias, since the `pure' property is true only for
-  ;; the calling convention of `kbd'.
+For an approximate inverse of this, see `key-description'.
+
+If NEED-VECTOR is non-nil, always return a vector instead of a
+string.  This is mainly intended for use by `edmacro-parse-keys',
+and should normally not be needed."
   (declare (pure t) (side-effect-free t))
   ;; A pure function is expected to preserve the match data.
-  (save-match-data (read-kbd-macro keys)))
+  (save-match-data
+    (let ((case-fold-search nil)
+          (len (length keys)) ; We won't alter keys in the loop below.
+          (pos 0)
+          (res []))
+      (while (and (< pos len)
+                  (string-match "[^ \t\n\f]+" keys pos))
+        (let* ((word-beg (match-beginning 0))
+               (word-end (match-end 0))
+               (word (substring keys word-beg len))
+               (times 1)
+               key)
+          ;; Try to catch events of the form "<as df>".
+          (if (string-match "\\`<[^ <>\t\n\f][^>\t\n\f]*>" word)
+              (setq word (match-string 0 word)
+                    pos (+ word-beg (match-end 0)))
+            (setq word (substring keys word-beg word-end)
+                  pos word-end))
+          (when (string-match "\\([0-9]+\\)\\*." word)
+            (setq times (string-to-number (substring word 0 (match-end 1))))
+            (setq word (substring word (1+ (match-end 1)))))
+          (cond ((string-match "^<<.+>>$" word)
+                 (setq key (vconcat (if (eq (key-binding [?\M-x])
+                                            'execute-extended-command)
+                                        [?\M-x]
+                                      (or (car (where-is-internal
+                                                'execute-extended-command))
+                                          [?\M-x]))
+                                    (substring word 2 -2) "\r")))
+                ((and (string-match "^\\(\\([ACHMsS]-\\)*\\)<\\(.+\\)>$" word)
+                      (progn
+                        (setq word (concat (match-string 1 word)
+                                           (match-string 3 word)))
+                        (not (string-match
+                              "\\<\\(NUL\\|RET\\|LFD\\|ESC\\|SPC\\|DEL\\)$"
+                              word))))
+                 (setq key (list (intern word))))
+                ((or (equal word "REM") (string-match "^;;" word))
+                 (setq pos (string-match "$" keys pos)))
+                (t
+                 (let ((orig-word word) (prefix 0) (bits 0))
+                   (while (string-match "^[ACHMsS]-." word)
+                     (setq bits (+ bits (cdr (assq (aref word 0)
+                                                   '((?A . ?\A-\^@) (?C . ?\C-\^@)
+                                                     (?H . ?\H-\^@) (?M . ?\M-\^@)
+                                                     (?s . ?\s-\^@) (?S . ?\S-\^@))))))
+                     (setq prefix (+ prefix 2))
+                     (setq word (substring word 2)))
+                   (when (string-match "^\\^.$" word)
+                     (setq bits (+ bits ?\C-\^@))
+                     (setq prefix (1+ prefix))
+                     (setq word (substring word 1)))
+                   (let ((found (assoc word '(("NUL" . "\0") ("RET" . "\r")
+                                              ("LFD" . "\n") ("TAB" . "\t")
+                                              ("ESC" . "\e") ("SPC" . " ")
+                                              ("DEL" . "\177")))))
+                     (when found (setq word (cdr found))))
+                   (when (string-match "^\\\\[0-7]+$" word)
+                     (let ((n 0))
+                       (dolist (ch (cdr (string-to-list word)))
+                         (setq n (+ (* n 8) ch -48)))
+                       (setq word (vector n))))
+                   (cond ((= bits 0)
+                          (setq key word))
+                         ((and (= bits ?\M-\^@) (stringp word)
+                               (string-match "^-?[0-9]+$" word))
+                          (setq key (mapcar (lambda (x) (+ x bits))
+                                            (append word nil))))
+                         ((/= (length word) 1)
+                          (error "%s must prefix a single character, not %s"
+                                 (substring orig-word 0 prefix) word))
+                         ((and (/= (logand bits ?\C-\^@) 0) (stringp word)
+                               ;; We used to accept . and ? here,
+                               ;; but . is simply wrong,
+                               ;; and C-? is not used (we use DEL instead).
+                               (string-match "[@-_a-z]" word))
+                          (setq key (list (+ bits (- ?\C-\^@)
+                                             (logand (aref word 0) 31)))))
+                         (t
+                          (setq key (list (+ bits (aref word 0)))))))))
+          (when key
+            (dolist (_ (number-sequence 1 times))
+              (setq res (vconcat res key))))))
+      (when (and (>= (length res) 4)
+                 (eq (aref res 0) ?\C-x)
+                 (eq (aref res 1) ?\()
+                 (eq (aref res (- (length res) 2)) ?\C-x)
+                 (eq (aref res (- (length res) 1)) ?\)))
+        (setq res (apply #'vector (let ((lres (append res nil)))
+                                    ;; Remove the first and last two elements.
+                                    (setq lres (cdr (cdr lres)))
+                                    (nreverse lres)
+                                    (setq lres (cdr (cdr lres)))
+                                    (nreverse lres)
+                                    lres))))
+      (if (and (not need-vector)
+               (not (memq nil (mapcar (lambda (ch)
+                                        (and (numberp ch)
+                                             (<= 0 ch 127)))
+                                      res))))
+          (concat (mapcar (lambda (ch)
+                            (if (= (logand ch ?\M-\^@) 0)
+                                ch (+ ch 128)))
+                          res))
+        res))))
 
 (defun undefined ()
   "Beep to tell the user this binding is undefined."
@@ -1000,6 +1139,7 @@ Bindings are always added before any inherited map.
 
 The order of bindings in a keymap matters only when it is used as
 a menu, so this function is not useful for non-menu keymaps."
+  (declare (indent defun))
   (unless after (setq after t))
   (or (keymapp keymap)
       (signal 'wrong-type-argument (list 'keymapp keymap)))
@@ -1752,6 +1892,7 @@ be a list of the form returned by `event-start' and `event-end'."
 (make-obsolete 'window-redisplay-end-trigger nil "23.1")
 (make-obsolete 'set-window-redisplay-end-trigger nil "23.1")
 (make-obsolete-variable 'operating-system-release nil "28.1")
+(make-obsolete-variable 'inhibit-changing-match-data 'save-match-data "29.1")
 
 (make-obsolete 'run-window-configuration-change-hook nil "27.1")
 
@@ -3035,6 +3176,7 @@ If there is a natural number at point, use it as default."
     (set-keymap-parent map minibuffer-local-map)
 
     (define-key map [remap self-insert-command] #'read-char-from-minibuffer-insert-char)
+    (define-key map [remap exit-minibuffer] #'read-char-from-minibuffer-insert-other)
 
     (define-key map [remap recenter-top-bottom] #'minibuffer-recenter-top-bottom)
     (define-key map [remap scroll-up-command] #'minibuffer-scroll-up-command)
@@ -3152,9 +3294,10 @@ There is no need to explicitly add `help-char' to CHARS;
     (define-key map [remap scroll-other-window] #'minibuffer-scroll-other-window)
     (define-key map [remap scroll-other-window-down] #'minibuffer-scroll-other-window-down)
 
-    (define-key map [escape] #'abort-recursive-edit)
-    (dolist (symbol '(quit exit exit-prefix))
+    (define-key map [remap exit] #'y-or-n-p-insert-other)
+    (dolist (symbol '(exit-prefix quit))
       (define-key map (vector 'remap symbol) #'abort-recursive-edit))
+    (define-key map [escape] #'abort-recursive-edit)
 
     ;; FIXME: try catch-all instead of explicit bindings:
     ;; (define-key map [remap t] #'y-or-n-p-insert-other)
@@ -3564,6 +3707,9 @@ If either NAME or VAL are specified, both should be specified."
 
 (defvar suspend-resume-hook nil
   "Normal hook run by `suspend-emacs', after Emacs is continued.")
+
+(defvar after-pdump-load-hook nil
+  "Normal hook run after loading the .pdmp file.")
 
 (defvar temp-buffer-show-hook nil
   "Normal hook run by `with-output-to-temp-buffer' after displaying the buffer.
@@ -4384,11 +4530,6 @@ is allowed once again.  (Immediately, if `inhibit-quit' is nil.)"
 	   ;; that intends to handle the quit signal next time.
 	   (eval '(ignore nil)))))
 
-;; Don't throw `throw-on-input' on those events by default.
-(setq while-no-input-ignore-events
-      '(focus-in focus-out help-echo iconify-frame
-        make-frame-visible selection-request))
-
 (defmacro while-no-input (&rest body)
   "Execute BODY only as long as there's no pending input.
 If input arrives, that ends the execution of BODY,
@@ -4761,14 +4902,12 @@ wherever possible, since it is slow."
 (defsubst looking-at-p (regexp)
   "\
 Same as `looking-at' except this function does not change the match data."
-  (let ((inhibit-changing-match-data t))
-    (looking-at regexp)))
+  (looking-at regexp t))
 
 (defsubst string-match-p (regexp string &optional start)
   "\
 Same as `string-match' except this function does not change the match data."
-  (let ((inhibit-changing-match-data t))
-    (string-match regexp string start)))
+  (string-match regexp string start t))
 
 (defun subregexp-context-p (regexp pos &optional start)
   "Return non-nil if POS is in a normal subregexp context in REGEXP.
@@ -5573,6 +5712,7 @@ If HOOKVAR is nil, `mail-send-hook' is used.
 
 The properties used on SYMBOL are `composefunc', `sendfunc',
 `abortfunc', and `hookvar'."
+  (declare (indent defun))
   (put symbol 'composefunc composefunc)
   (put symbol 'sendfunc sendfunc)
   (put symbol 'abortfunc (or abortfunc #'kill-buffer))
@@ -6437,7 +6577,9 @@ of fill.el (for example `fill-region')."
 (defun internal--format-docstring-line (string &rest objects)
   "Format a single line from a documentation string out of STRING and OBJECTS.
 Signal an error if STRING contains a newline.
-This is intended for internal use only."
+This is intended for internal use only.  Avoid using this for the
+first line of a docstring; the first line should be a complete
+sentence (see Info node `(elisp) Documentation Tips')."
   (when (string-match "\n" string)
     (error "Unable to fill string containing newline: %S" string))
   (internal--fill-string-single-line (apply #'format string objects)))
@@ -6457,5 +6599,114 @@ not a list, return a one-element list containing OBJECT."
   (if (listp object)
       object
     (list object)))
+
+(defun define-keymap (&rest definitions)
+  "Create a new keymap and define KEY/DEFEFINITION pairs as key sequences.
+The new keymap is returned.
+
+Options can be given as keywords before the KEY/DEFEFINITION
+pairs.  Available keywords are:
+
+:full      If non-nil, create a chartable alist (see `make-keymap').
+             If nil (i.e., the default), create a sparse keymap (see
+             `make-sparse-keymap').
+
+:suppress  If non-nil, the keymap will be suppressed (see `suppress-keymap').
+             If `nodigits', treat digits like other chars.
+
+:parent    If non-nil, this should be a keymap to use as the parent
+             (see `set-keymap-parent').
+
+:keymap    If non-nil, instead of creating a new keymap, the given keymap
+             will be destructively modified instead.
+
+:name      If non-nil, this should be a string to use as the menu for
+             the keymap in case you use it as a menu with `x-popup-menu'.
+
+:prefix    If non-nil, this should be a symbol to be used as a prefix
+             command (see `define-prefix-command').  If this is the case,
+             this symbol is returned instead of the map itself.
+
+KEY/DEFINITION pairs are as KEY and DEF in `define-key'.  KEY can
+also be the special symbol `:menu', in which case DEFINITION
+should be a MENU form as accepted by `easy-menu-define'.
+
+\(fn &key FULL PARENT SUPPRESS NAME PREFIX KEYMAP &rest [KEY DEFINITION]...)"
+  (declare (indent defun))
+  (define-keymap--define definitions))
+
+(defun define-keymap--define (definitions)
+  (let (full suppress parent name prefix keymap)
+    ;; Handle keywords.
+    (while (and definitions
+                (keywordp (car definitions))
+                (not (eq (car definitions) :menu)))
+      (let ((keyword (pop definitions)))
+        (unless definitions
+          (error "Missing keyword value for %s" keyword))
+        (let ((value (pop definitions)))
+          (pcase keyword
+            (:full (setq full value))
+            (:keymap (setq keymap value))
+            (:parent (setq parent value))
+            (:suppress (setq suppress value))
+            (:name (setq name value))
+            (:prefix (setq prefix value))))))
+
+    (when (and prefix
+               (or full parent suppress keymap))
+      (error "A prefix keymap can't be defined with :full/:parent/:suppress/:keymap keywords"))
+
+    (when (and keymap full)
+      (error "Invalid combination: :keymap with :full"))
+
+    (let ((keymap (cond
+                   (keymap keymap)
+                   (prefix (define-prefix-command prefix nil name))
+                   (full (make-keymap name))
+                   (t (make-sparse-keymap name)))))
+      (when suppress
+        (suppress-keymap keymap (eq suppress 'nodigits)))
+      (when parent
+        (set-keymap-parent keymap parent))
+
+      ;; Do the bindings.
+      (while definitions
+        (let ((key (pop definitions)))
+          (unless definitions
+            (error "Uneven number of key/definition pairs"))
+          (let ((def (pop definitions)))
+            (if (eq key :menu)
+                (easy-menu-define nil keymap "" def)
+              (define-key keymap key def)))))
+      keymap)))
+
+(defmacro defvar-keymap (variable-name &rest defs)
+  "Define VARIABLE-NAME as a variable with a keymap definition.
+See `define-keymap' for an explanation of the keywords and KEY/DEFINITION.
+
+In addition to the keywords accepted by `define-keymap', this
+macro also accepts a `:doc' keyword, which (if present) is used
+as the variable documentation string.
+
+\(fn VARIABLE-NAME &key DOC FULL PARENT SUPPRESS NAME PREFIX KEYMAP &rest [KEY DEFINITION]...)"
+  (declare (indent 1))
+  (let ((opts nil)
+        doc)
+    (while (and defs
+                (keywordp (car defs))
+                (not (eq (car defs) :menu)))
+      (let ((keyword (pop defs)))
+        (unless defs
+          (error "Uneven number of keywords"))
+        (if (eq keyword :doc)
+            (setq doc (pop defs))
+          (push keyword opts)
+          (push (pop defs) opts))))
+    (unless (zerop (% (length defs) 2))
+      (error "Uneven number of key/definition pairs: %s" defs))
+    `(defvar ,variable-name
+       (define-keymap--define (list ,@(nreverse opts) ,@defs))
+       ,@(and doc (list doc)))))
 
 ;;; subr.el ends here

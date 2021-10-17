@@ -4201,7 +4201,7 @@ times.
 
 The part of the buffer between point and mark is called @dfn{the
 region}.  Numerous commands work on the region, including
-@code{center-region}, @code{count-lines-region}, @code{kill-region}, and
+@code{center-region}, @code{count-words-region}, @code{kill-region}, and
 @code{print-region}.
 
 The @code{save-excursion} special form saves the location of point and
@@ -4214,7 +4214,7 @@ evaluated.
 
 In Emacs, a function frequently moves point as part of its internal
 workings even though a user would not expect this.  For example,
-@code{count-lines-region} moves point.  To prevent the user from being
+@code{count-words-region} moves point.  To prevent the user from being
 bothered by jumps that are both unexpected and (from the user's point of
 view) unnecessary, @code{save-excursion} is often used to keep point in
 the location expected by the user.  The use of
@@ -8767,7 +8767,7 @@ keeps the kill ring from growing too long.  It looks like this:
 
 The code checks whether the length of the kill ring is greater than
 the maximum permitted length.  This is the value of
-@code{kill-ring-max} (which is 60, by default).  If the length of the
+@code{kill-ring-max} (which is 120, by default).  If the length of the
 kill ring is too long, then this code sets the last element of the
 kill ring to @code{nil}.  It does this by using two functions,
 @code{nthcdr} and @code{setcdr}.
@@ -13473,10 +13473,9 @@ The template for an interactive function definition is, as always:
 
 What we need to do is fill in the slots.
 
-The name of the function should be self-explanatory and similar to the
-existing @code{count-lines-region} name.  This makes the name easier
+The name of the function should be self-explanatory and easy
 to remember.  @code{count-words-region} is the obvious choice.  Since
-that name is now used for the standard Emacs command to count words, we
+that name is used for the standard Emacs command to count words, we
 will name our implementation @code{@value{COUNT-WORDS}}.
 
 The function counts words within a region.  This means that the
@@ -17457,9 +17456,9 @@ Manual}, for more information.
 @findex line-to-top-of-window
 @cindex Simple extension in @file{.emacs} file
 
-Here is a simple extension to Emacs that moves the line point is on to
-the top of the window.  I use this all the time, to make text easier
-to read.
+Here is a simple extension to Emacs that moves the line that point is
+on to the top of the window.  I use this all the time, to make text
+easier to read.
 
 You can put the following code into a separate file and then load it
 from your @file{.emacs} file, or you can include it within your

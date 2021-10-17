@@ -1433,6 +1433,14 @@ dired."
   (interactive)
   (image-dired-modify-mark-on-thumb-original-file 'toggle))
 
+(defun image-dired-unmark-all-marks ()
+  "Remove all marks from all files.
+Do this in the Dired buffer and update this thumbnail buffer."
+  (interactive)
+  (with-current-buffer (image-dired-associated-dired-buffer)
+    (dired-unmark-all-marks))
+  (image-dired-thumb-update-marks))
+
 (defun image-dired-jump-original-dired-buffer ()
   "Jump to the dired buffer associated with the current image file.
 You probably want to use this together with
@@ -1536,6 +1544,7 @@ You probably want to use this together with
         ["Quit" quit-window]
         ["Delete thumbnail from buffer" image-dired-delete-char]
         ["Delete marked images" image-dired-delete-marked]
+        ["Unmark all marks" image-dired-unmark-all-marks]
         ["Remove tag from current or marked thumbnails"
          image-dired-tag-thumbnail-remove]
         ["Tag current or marked thumbnails" image-dired-tag-thumbnail]
@@ -2314,18 +2323,19 @@ non-nil."
         (dired-buf (image-dired-associated-dired-buffer)))
     (when (and dired-buf file-name)
       (with-current-buffer dired-buf
-        (when (dired-goto-file file-name)
-          (image-dired-dired-file-marked-p))))))
+        (save-excursion
+          (when (dired-goto-file file-name)
+            (image-dired-dired-file-marked-p)))))))
 
 (defun image-dired-delete-marked ()
   "Delete current or marked thumbnails and associated images."
   (interactive)
-  (with-current-buffer (image-dired-associated-dired-buffer)
-    (dired-do-delete))
   (image-dired--with-marked
    (image-dired-delete-char)
    (backward-char))
-  (image-dired--line-up-with-method))
+  (image-dired--line-up-with-method)
+  (with-current-buffer (image-dired-associated-dired-buffer)
+    (dired-do-delete)))
 
 (defun image-dired-thumb-update-marks ()
   "Update the marks in the thumbnail buffer."

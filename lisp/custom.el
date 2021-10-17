@@ -364,7 +364,8 @@ call that function directly.
 
 See Info node `(elisp) Customization' in the Emacs Lisp manual
 for more information."
-  (declare (doc-string 3) (debug (name body)))
+  (declare (doc-string 3) (debug (name body))
+           (indent defun))
   ;; It is better not to use backquote in this file,
   ;; because that makes a bootstrapping problem
   ;; if you need to recompile all the Lisp files using interpreted code.
@@ -447,7 +448,7 @@ In the ATTS property list, possible attributes are `:family',
 
 See Info node `(elisp) Faces' in the Emacs Lisp manual for more
 information."
-  (declare (doc-string 3))
+  (declare (doc-string 3) (indent defun))
   ;; It is better not to use backquote in this file,
   ;; because that makes a bootstrapping problem
   ;; if you need to recompile all the Lisp files using interpreted code.
@@ -511,7 +512,7 @@ For a list of valid keywords, see the common keywords listed in
 
 See Info node `(elisp) Customization' in the Emacs Lisp manual
 for more information."
-  (declare (doc-string 3))
+  (declare (doc-string 3) (indent defun))
   ;; It is better not to use backquote in this file,
   ;; because that makes a bootstrapping problem
   ;; if you need to recompile all the Lisp files using interpreted code.
@@ -1142,6 +1143,7 @@ The optional argument DOC is a doc string describing the theme.
 Any theme `foo' should be defined in a file called `foo-theme.el';
 see `custom-make-theme-feature' for more information."
   (declare (doc-string 2)
+           (indent 1)
            (advertised-calling-convention (theme &optional doc) "22.1"))
   (let ((feature (custom-make-theme-feature theme)))
     ;; It is better not to use backquote in this file,
@@ -1331,6 +1333,13 @@ Return t if THEME was successfully loaded, nil otherwise."
                  t))))
           (t
            (error "Unable to load theme `%s'" theme))))
+  (when-let ((obs (get theme 'byte-obsolete-info)))
+    (display-warning 'initialization
+                     (format "The `%s' theme is obsolete%s"
+                             theme
+                             (if (nth 2 obs)
+                                 (format " since Emacs %s" (nth 2 obs))
+                               ""))))
   ;; Optimization: if the theme changes the `default' face, put that
   ;; entry first.  This avoids some `frame-set-background-mode' rigmarole
   ;; by assigning the new background immediately.
