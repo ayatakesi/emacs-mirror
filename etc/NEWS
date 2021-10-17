@@ -80,6 +80,14 @@ This was only ever relevant when building from a repository checkout.
 This now requires makeinfo, which is part of the texinfo package.
 
 ---
+** There is a new configure option '--disable-year2038' to cause
+Emacs to use only 32-bit time_t on platforms that have both 32- and
+64-bit time_t.  This may help link Emacs to a library with ABI
+requiring traditional 32-bit time_t.  This option currently affects
+only 32-bit ARM and x86 running GNU/Linux with glibc 2.34 and later.
+Emacs now defaults to 64-bit time_t on these platforms.
+
+---
 ** Support for building with '-fcheck-pointer-bounds' has been removed.
 GCC has withdrawn the '-fcheck-pointer-bounds' option and support for
 its implementation has been removed from the Linux kernel.
@@ -144,8 +152,8 @@ their treatment.  Which codepoints are treated as emoji is derived
 from the Unicode specifications.  Also, Emacs will now use "Noto Color
 Emoji" by default for that script.  Use:
 
-(set-fontset-font t 'emoji
-                  '("My New Emoji Font" . "iso10646-1") nil 'prepend)
+    (set-fontset-font t 'emoji
+                      '("My New Emoji Font" . "iso10646-1") nil 'prepend)
 
 to change the font used.
 
@@ -153,7 +161,7 @@ to change the font used.
 ** Zero Width Joiner (ZWJ) and emoji sequences are now composed.
 Emacs can now compose (almost) all the Unicode-14 ZWJ and emoji
 sequences (if a suitable font is installed) so that they are displayed
-as single glyphs instead of multiple ones.  'Noto Color Emoji' is one
+as single glyphs instead of multiple ones.  "Noto Color Emoji" is one
 such suitable font.
 
 +++
@@ -163,7 +171,7 @@ font is now used to check if composition can be performed, rather than
 the font of the first character of the string being composed.  This
 allows e.g.
 
-'Emoji codepoint' + VS-16
+    'Emoji codepoint' + VS-16
 
 to be displayed using the emoji font even if 'Emoji codepoint' does
 not have emoji presentation by default.
@@ -344,8 +352,8 @@ of the next command to be displayed in a new frame.
 
 +++
 *** New command 'clone-frame' (bound to 'C-x 5 c').
-This is like 'C-x 5 2', but uses the frame parameters of the current
-frame instead of 'default-frame-alist'.
+This is like 'C-x 5 2', but uses the window configuration and frame
+parameters of the current frame instead of 'default-frame-alist'.
 
 ---
 *** Default values of 'frame-title-format' and 'icon-title-format' have changed.
@@ -543,7 +551,7 @@ If your mouse or trackpad supports it, you can now scroll tabs when
 the mouse pointer is in the tab line by scrolling left or right.
 
 ---
-*** New tab-line faces and options.
+*** New tab-line faces and user options.
 The face 'tab-line-tab-special' is used for tabs whose buffers are
 special, i.e. buffers that don't visit a file.  The face
 'tab-line-tab-modified' is used to display modified, file-backed
@@ -551,7 +559,7 @@ buffers.  The face 'tab-line-tab-inactive-alternate' is used to
 display inactive tabs with an alternating background color, making
 them easier to distinguish, especially if the face 'tab-line-tab' is
 configured to not display with a box; this alternate face is only
-applied when the option 'tab-line-tab-face-functions' is so
+applied when the user option 'tab-line-tab-face-functions' is so
 configured.  That option may also be used to customize tab-line faces
 in other ways.
 
@@ -595,7 +603,7 @@ built without SVG support, the old icons will be used instead.
 ** Help
 
 ---
-*** The order things are displayed in the *Help* buffer has been changed.
+*** The order things are displayed in the "*Help*" buffer has been changed.
 The indented "administrative" block (containing the "probably
 introduced" and "other relevant functions" (and similar things) has
 been moved to after the doc string.
@@ -820,7 +828,24 @@ buffers.  This can be controlled by customizing the user option
 *** 'nobreak-char-display' now also affects all non-ASCII space characters.
 Previously, this was limited only to 'NO-BREAK SPACE' and hyphen
 characters.  Now it also covers the rest of the non-ASCII Unicode
-space characters.
+space characters.  Also, unlike in previous versions of Emacs, the
+non-ASCII characters are displayed as themselves when
+'nobreak-char-display' is t, i.e. they are not replaced on display
+with the ASCII space and hyphen characters.
+
+---
+*** New backward compatibility variable 'nobreak-char-ascii-display'.
+This variable is nil by default, and non-ASCII space and hyphen
+characters are displayed as themselves, even if 'nobreak-char-display'
+is non-nil.  If 'nobreak-char-ascii-display' is set to a non-nil
+value, the non-ASCII space and hyphen characters are instead displayed
+as their ASCII counterparts: spaces and ASCII hyphen (a.k.a. "dash")
+characters.  This provides backward compatibility feature for the
+change described above, where the non-ASCII characters are no longer
+replaced with their ASCII counterparts when 'nobreak-char-display' is
+t.  You may need this on text-mode terminals that produce messed up
+display when non-ASCII spaces and hyphens are written to the display.
+(This variable is only effective when 'nobreak-char-display' is t.)
 
 +++
 *** Improved support for terminal emulators that encode the Meta flag.
@@ -885,6 +910,109 @@ to Libera.Chat, IRC-related references in the Emacs repository have
 now been updated to point to Libera.Chat.
 
 https://lists.gnu.org/archive/html/info-gnu-emacs/2021-06/msg00000.html
+
+
+* Incompatible Editing Changes in Emacs 28.1
+
+---
+** 'toggle-truncate-lines' now disables 'visual-line-mode'.
+This is for symmetry with 'visual-line-mode', which disables
+'truncate-lines'.
+
+---
+** 'electric-indent-mode' now also indents inside strings and comments.
+(This only happens when indentation function also supports this.)
+
+To recover the previous behavior you can use:
+
+    (add-hook 'electric-indent-functions
+              (lambda (_) (if (nth 8 (syntax-ppss)) 'no-indent)))
+
+---
+** The 'M-o' ('facemenu-keymap') global binding has been removed.
+To restore the old binding, say something like:
+
+    (require 'facemenu)
+    (define-key global-map "\M-o" 'facemenu-keymap)
+    (define-key facemenu-keymap "\es" 'center-line)
+    (define-key facemenu-keymap "\eS" 'center-paragraph)
+
+The last two lines are not strictly necessary if you don't care about
+having those two commands on the 'M-o' keymap; see the next section.
+
+---
+** The 'M-o M-s' and 'M-o M-S' global bindings have been removed.
+Use 'M-x center-line' and 'M-x center-paragraph' instead.  See the
+previous section for how to get back the old bindings.  Alternatively,
+if you only want these two commands to have global bindings they had
+before, you can add the following to your init file:
+
+    (define-key global-map "\M-o\M-s" 'center-line)
+    (define-key global-map "\M-o\M-S" 'center-paragraph)
+
+---
+** The 'M-o M-o' global binding has been removed.
+Use 'M-x font-lock-fontify-block' instead, or the new 'C-x x f'
+command, which updates the syntax highlighting in the current buffer.
+
+---
+** The escape sequence '\e[29~' in Xterm is now mapped to 'menu'.
+Xterm sends this sequence for both 'F16' and 'Menu' keys
+It used to be mapped to 'print' but we couldn't find a terminal
+that uses this sequence for any kind of 'Print' key.
+This makes the Menu key (see https://en.wikipedia.org/wiki/Menu_key)
+work for 'context-menu-mode' in Xterm.
+
+---
+** New user option 'xterm-store-paste-on-kill-ring'.
+If non-nil (the default), Emacs pushes pasted text onto the kill ring
+(if using an xterm-like terminal that supports bracketed paste).
+Setting this to nil inhibits that.
+
+---
+** 'vc-print-branch-log' shows the change log from its root directory.
+It previously used to use the default directory.
+
+---
+** 'project-shell' and 'shell' now use 'pop-to-buffer-same-window'.
+This is to keep the same behavior as Eshell.
+
+---
+** In 'nroff-mode', 'center-line' is no longer bound to a key.
+The original key binding was 'M-s', which interfered with I-search,
+since the latter uses 'M-s' as a prefix key of the search prefix map.
+
+---
+** In 'f90-mode', the backslash character ('\') no longer escapes.
+For about a decade, the backslash character has no longer had a
+special escape syntax in Fortran F90.  To get the old behavior back,
+say something like:
+
+    (modify-syntax-entry ?\\ "\\" f90-mode-syntax-table)
+
++++
+** Setting 'fill-column' to nil is obsolete.
+This undocumented use of 'fill-column' is now obsolete.  To disable
+auto filling, turn off 'auto-fill-mode' instead.
+
+For instance, you could add something like the following to your init
+file:
+
+    (add-hook 'foo-mode-hook (lambda () (auto-fill-mode -1))
+
+** Xref migrated from EIEIO to cl-defstruct for its core objects.
+This means that 'oref' and 'with-slots' no longer works on them, and
+'make-instance' can no longer be used to create those instances (which
+wasn't recommended anyway).  Packages should keep to using the
+functions like 'xref-make', 'xref-make-match', 'xref-make-*-location',
+as well as accessor functions 'xref-item-summary' and
+'xref-item-location'.
+
+Among the benefits are better performance (noticeable when there are a
+lot of matches) and improved flexibility: 'xref-match-item' instances
+do not require that 'location' inherits from 'xref-location' anymore
+(that class was removed), so packages can create new location types to
+use with "match items" without adding EIEIO as a dependency.
 
 
 * Editing Changes in Emacs 28.1
@@ -989,11 +1117,12 @@ further tweak whether to complete or indent.
 ---
 ** 'indent-tabs-mode' is now a global minor mode instead of just a variable.
 
----
++++
 ** New choice 'permanent' for 'shift-select-mode'.
 When the mark was activated by shifted motion keys, non-shifted motion
 keys don't deactivate the mark after customizing 'shift-select-mode'
-to 'permanent'.
+to 'permanent'.  Similarly, the active mark will not be deactivated by
+typing shifted motion keys.
 
 +++
 ** The "Edit => Clear" menu item now obeys a rectangular region.
@@ -1064,7 +1193,7 @@ buffer to be able to move point to the inaccessible portion.
 'goto-line-relative' is bound to 'C-x n g'.
 
 +++
-** 'got-char' prompts for the character position.
+** 'goto-char' prompts for the character position.
 When called interactively, 'goto-char' now offers the position at
 point as the default.
 
@@ -1091,7 +1220,7 @@ It serves as a local counterpart for 'show-paren-mode', allowing you
 to toggle it separately in different buffers.  To use it only in
 programming modes, for example, add the following to your init file:
 
-(add-hook 'prog-mode-hook #'show-paren-local-mode)
+    (add-hook 'prog-mode-hook #'show-paren-local-mode)
 
 
 * Changes in Specialized Modes and Packages in Emacs 28.1
@@ -1142,7 +1271,7 @@ search string is at least this long.  'lazy-highlight-initial-delay'
 still applies for shorter search strings, which avoids flicker in the
 search buffer due to too many matches being highlighted.
 
----
++++
 *** The default 'search-whitespace-regexp' value has changed.
 This used to be "\\s-+", which meant that it was mode-dependent whether
 newlines were included in the whitespace set.  This has now been
@@ -1237,8 +1366,8 @@ The commands are now bound to 'C-x C-j' and 'C-x 4 C-j' by default.
 To get the old behavior of 'dired-bind-jump' back and unbind the above
 keys, add the following to your init file:
 
-(global-set-key "\C-x\C-j" nil)
-(global-set-key "\C-x4\C-j" nil)
+    (global-set-key "\C-x\C-j" nil)
+    (global-set-key "\C-x4\C-j" nil)
 
 ---
 *** 'dired-query' now uses 'read-char-from-minibuffer'.
@@ -1253,7 +1382,7 @@ invoked during I-search, move respectively to the first occurrence of
 the current search string in the buffer, the last one, the first one
 after the current window, and the last one before the current window.
 Additionally, users can change the meaning of other motion commands
-during I-search by using their 'isearch-motion' property.  The
+during I-search by using their 'isearch-motion' property.  The user
 option 'isearch-motion-changes-direction' controls whether the
 direction of the search changes after a motion command.
 
@@ -1583,7 +1712,7 @@ Some modules have their own minor mode now to account for these
 changes.
 
 *** Support for bookmark.el.
-The command `bookmark-set' (bound to `C-x r m') is now supported, and
+The command 'bookmark-set' (bound to 'C-x r m') is now supported, and
 will create a bookmark that opens the current directory in Eshell.
 
 ** Archive mode
@@ -1807,6 +1936,10 @@ tags to be considered as well.
 ---
 *** New user option 'vc-git-log-switches'.
 String or list of strings specifying switches for Git log under VC.
+
+*** Command 'vc-switch-backend' is now obsolete.
+If you are still using it with any regularity, please file a bug
+report with some details.
 
 ** Gnus
 
@@ -2394,14 +2527,14 @@ information, see the related entry about 'shr-browse-url' above.
 
 ---
 *** Support for bookmark.el.
-The command `bookmark-set' (bound to `C-x r m') is now supported, and
+The command 'bookmark-set' (bound to 'C-x r m') is now supported, and
 will create a bookmark that opens the current URL in EWW.
 
 ** SHR
 
 ---
 *** The command 'shr-browse-url' now supports custom mailto handlers.
-Clicking on or otherwise following a 'mailto:' link in a HTML buffer
+Clicking on or otherwise following a 'mailto:' link in an HTML buffer
 rendered by SHR previously invoked the command 'browse-url-mailto'.
 This is still the case by default, but if you customize
 'browse-url-mailto-function' or 'browse-url-handlers' to call some
@@ -2423,8 +2556,10 @@ Those are 'shr-h1', 'shr-h2', 'shr-h3', 'shr-h4', 'shr-h5', 'shr-h6'.
 
 ** Project
 
+---
 *** New user option 'project-vc-merge-submodules'.
 
+---
 *** Project commands now have their own history.
 Previously used project directories are now suggested by all commands
 that prompt for a project directory.
@@ -2441,8 +2576,7 @@ a project's root directory, respectively.
 
 +++
 *** New command 'project-compile'.
-This command runs compilation in the current project's root
-directory.
+This command runs compilation in the current project's root directory.
 
 +++
 *** New command 'project-switch-project'.
@@ -2466,7 +2600,7 @@ directory and optionally also its subdirectories, storing them in
 
 +++
 *** New commands 'project-forget-project' and 'project-forget-projects-under'.
-These command lets you interactively remove entries from the list of projects
+These commands let you interactively remove entries from the list of projects
 in 'project-list-file'.
 
 +++
@@ -2505,7 +2639,7 @@ The new user option 'xref-auto-jump-to-first-xref' changes the
 behavior of Xref commands such as 'xref-find-references',
 'xref-find-apropos', and 'project-find-regexp', which are expected to
 display many matches that the user would like to
-visit. 'xref-auto-jump-to-first-xref' changes their behavior much in
+visit.  'xref-auto-jump-to-first-xref' changes their behavior much in
 the same way as 'xref-auto-jump-to-first-definition' affects the
 "find-definitions" commands.
 
@@ -2652,7 +2786,9 @@ This allows mode-specific alterations to how 'thing-at-point' works.
 'symbol-at-point') will narrow to the current field (if any) before
 trying to identify the thing at point.
 
+---
 *** New function 'thing-at-mouse'.
+This is like 'thing-at-point', but uses the mouse event position instead.
 
 ** image-dired
 
@@ -2670,7 +2806,7 @@ images are marked.
 ** Flymake mode
 
 +++
-*** New command 'flymake-show-project-diagnostics'
+*** New command 'flymake-show-project-diagnostics'.
 This lists all diagnostics for buffers in the currently active
 project.  The listing is similar to the one obtained by
 'flymake-show-buffer-diagnostics', but adds a column for the
@@ -2823,76 +2959,8 @@ non-nil.
 
 ** ERC
 
----
-*** NickServ passwords can now be retrieved from auth-source.
-The 'erc-use-auth-source-for-nickserv-password' user option enables
-querying auth-source for NickServ passwords.  To enable this, add the
-following to your init file:
-
-    (setq erc-use-auth-source-for-nickserv-password t)
-
----
-*** NickServ identification now prompts for password last.
-When 'erc-prompt-for-nickserv-password' is non-nil, the user used to
-be unconditionally prompted interactively for a password, regardless
-of the value of 'erc-nickserv-passwords', which was effectively
-ignored (same for the new
-'erc-use-auth-source-for-nickserv-password').  This limitation is now
-lifted, and the user is interactively prompted last, after the other
-identification methods have run.
-
----
-*** The '/ignore' command will now ask for a timeout to stop ignoring the user.
-Allowed inputs are seconds or ISO8601-like periods like "1h" or "4h30m".
-
----
-*** ERC now recognizes 'C-]' for italic text.
-Italic text is displayed in the new 'erc-italic-face'.
-
----
-*** erc-match.el now supports 'message' highlight type (not including the nick).
-The 'erc-current-nick-highlight-type', 'erc-pal-highlight-type',
-'erc-fool-highlight-type', 'erc-keyword-highlight-type', and
-'erc-dangerous-host-highlight-type' user options now support a
-'message' type for highlighting the entire message but not the
-sender's nick.
-
----
-*** erc-status-sidebar.el is now part of ERC.
-The 'erc-status-sidebar' package which provides a HexChat-like
-activity overview sidebar for joined IRC channels is now part of ERC.
-
-+++
-*** erc-tls now supports specifying a TLS client certificate.
-The 'erc-tls' function has been updated to allow specifying a TLS
-client certificate for authentication, as an alternative to NickServ
-password-based authentication.  This is referred to as "CertFP" (short
-for Certificate Fingerprint) by several IRC networks.  See the Info
-node "(erc) Connecting" in the ERC manual for more details and
-examples on how to specify and use TLS client certificates with
-'erc-tls'.
-
----
-*** Add 'erc-track-select-mode-line-face' (obsoletes 'erc-track-find-face').
-The 'erc-track-find-face' function of the erc-track module has been
-declared obsolete and rewritten as 'erc-track-select-mode-line-face',
-with different expected arguments (the current and old faces are now
-separated) and clearer documentation.
-
----
-*** Add '/opme' and '/deopme' convenience commands.
-The new '/opme' convenience command asks ChanServ to set the operator
-status for the current nick in the current channel, and '/deopme'
-unsets it.
-
----
-*** Add '/wii' convenience command for whois with idle time.
-The new '/wii' convenience command calls the '/whois' command with the
-given nick as both arguments, which is useful for displaying the whois
-information for the nick along with idle time, even if the nick is on
-a different server than the one the current user is connected to.
-Using the given nick itself instead of the server it is connected to
-is not standardized, but is widely supported across IRC networks.
+*** Starting with Emacs 28.1 and ERC 5.4, see the ERC-NEWS file for
+user-visible changes in ERC.
 
 ** xwidget-webkit mode
 
@@ -2948,10 +3016,10 @@ checkdoc will now check the format of 'yes-or-no-p'.
 This can be used to run checkdoc on files from a Dired buffer.
 
 ---
-*** No longer checks for "A-" modifiers.
+*** No longer checks for 'A-' modifiers.
 Checkdoc recommends usage of command substitutions ("\\[foo-command]")
-in favor of writing keybindings like "C-c f".  It now no longer warns
-about the "A-" modifier as it is not used very much in practice, and
+in favor of writing keybindings like 'C-c f'.  It now no longer warns
+about the 'A-' modifier as it is not used very much in practice, and
 this warning therefore mostly led to false positives.
 
 ** Enriched mode
@@ -3003,6 +3071,9 @@ Face 'mh-folder-whitelisted' is renamed 'mh-folder-allowlisted'.
 *** rcirc now supports SASL authentication.
 
 ---
+*** #emacs on Libera.chat has been added to 'rcirc-server-alist'.
+
+---
 *** rcirc connects asynchronously.
 
 ---
@@ -3010,7 +3081,7 @@ Face 'mh-folder-whitelisted' is renamed 'mh-folder-allowlisted'.
 The function now accepts a variable number of arguments.
 
 +++
-*** Deprecate 'defun-rcirc-command' in favour of 'rcirc-define-command'.
+*** Deprecate 'rcirc-command' in favor of 'rcirc-define-command'.
 The new macro handles multiple and optional arguments.
 
 ---
@@ -3036,7 +3107,7 @@ See 'rcirc-reconnect-attempts'.
 ---
 *** New command 'mpc-goto-playing-song'.
 This command, bound to 'o' in any 'mpc-mode' buffer, moves point to
-the currently playing song in the "*Songs*" buffer.
+the currently playing song in the "*MPC-Songs*" buffer.
 
 ---
 *** New user option 'mpc-cover-image-re'.
@@ -3204,109 +3275,6 @@ structures.
 ** New major mode for displaying the "etc/AUTHORS" file.
 This new 'etc-authors-mode' provides font-locking for displaying the
 "etc/AUTHORS" file from the Emacs distribution, and not much else.
-
-
-* Incompatible Editing Changes in Emacs 28.1
-
----
-** 'toggle-truncate-lines' now disables 'visual-line-mode'.
-This is for symmetry with 'visual-line-mode', which disables
-'truncate-lines'.
-
----
-** 'electric-indent-mode' now also indents inside strings and comments.
-(This only happens when indentation function also supports this.)
-
-To recover the previous behavior you can use:
-
-    (add-hook 'electric-indent-functions
-              (lambda (_) (if (nth 8 (syntax-ppss)) 'no-indent)))
-
----
-** The 'M-o' ('facemenu-keymap') global binding has been removed.
-To restore the old binding, say something like:
-
-    (require 'facemenu)
-    (define-key global-map "\M-o" 'facemenu-keymap)
-    (define-key facemenu-keymap "\es" 'center-line)
-    (define-key facemenu-keymap "\eS" 'center-paragraph)
-
-The last two lines are not strictly necessary if you don't care about
-having those two commands on the 'M-o' keymap; see the next section.
-
----
-** The 'M-o M-s' and 'M-o M-S' global bindings have been removed.
-Use 'M-x center-line' and 'M-x center-paragraph' instead.  See the
-previous section for how to get back the old bindings.  Alternatively,
-if you only want these two commands to have global bindings they had
-before, you can add the following to your init file:
-
-  (define-key global-map "\M-o\M-s" 'center-line)
-  (define-key global-map "\M-o\M-S" 'center-paragraph)
-
----
-** The 'M-o M-o' global binding has been removed.
-Use 'M-x font-lock-fontify-block' instead, or the new 'C-x x f'
-command, which updates the syntax highlighting in the current buffer.
-
----
-** The escape sequence '\e[29~' in Xterm is now mapped to 'menu'.
-Xterm sends this sequence for both 'F16' and 'Menu' keys
-It used to be mapped to 'print' but we couldn't find a terminal
-that uses this sequence for any kind of 'Print' key.
-This makes the Menu key (see https://en.wikipedia.org/wiki/Menu_key)
-work for 'context-menu-mode' in Xterm.
-
----
-** New user option 'xterm-store-paste-on-kill-ring'.
-If non-nil (the default), Emacs pushes pasted text onto the kill ring
-(if using an xterm-like terminal that supports bracketed paste).
-Setting this to nil inhibits that.
-
----
-** 'vc-print-branch-log' shows the change log from its root directory.
-It previously used to use the default directory.
-
----
-** 'project-shell' and 'shell' now use 'pop-to-buffer-same-window'.
-This is to keep the same behavior as Eshell.
-
----
-** In 'nroff-mode', 'center-line' is no longer bound to a key.
-The original key binding was 'M-s', which interfered with I-search,
-since the latter uses 'M-s' as a prefix key of the search prefix map.
-
----
-** In 'f90-mode', the backslash character ('\') no longer escapes.
-For about a decade, the backslash character has no longer had a
-special escape syntax in Fortran F90.  To get the old behavior back,
-say something like:
-
-    (modify-syntax-entry ?\\ "\\" f90-mode-syntax-table)
-
-+++
-** Setting 'fill-column' to nil is obsolete.
-This undocumented use of 'fill-column' is now obsolete.  To disable
-auto filling, turn off 'auto-fill-mode' instead.
-
-For instance, you could add something like the following to your init
-file:
-
-    (add-hook 'foo-mode-hook (lambda () (auto-fill-mode -1))
-
-** Xref migrated from EIEIO to cl-defstruct for its core objects.
-This means that 'oref' and 'with-slots' no longer works on them, and
-'make-instance' can no longer be used to create those instances (which
-wasn't recommended anyway).  Packages should keep to using the
-functions like 'xref-make', 'xref-make-match', 'xref-make-*-location',
-as well as accessor functions 'xref-item-summary' and
-'xref-item-location'.
-
-Among the benefits are better performance (noticeable when there are a
-lot of matches) and improved flexibility: 'xref-match-item' instances
-do not require that 'location' inherits from 'xref-location' anymore
-(that class was removed), so packages can create new location types to
-use with "match items" without adding EIEIO as a dependency.
 
 
 * Incompatible Lisp Changes in Emacs 28.1
@@ -3533,7 +3501,7 @@ by mistake and were not useful to Lisp code.
 The former is now declared obsolete.
 
 +++
-** 'facemenu.el' is no longer preloaded.
+** facemenu.el is no longer preloaded.
 To use functions/variables from the package, you now have to say
 '(require 'facemenu)' or similar.
 
@@ -3698,9 +3666,9 @@ objects in files specified by that variable.  It's unclear when this
 actually changed, but at some point (perhaps decades ago) these
 commands started using 'load-history' to determine where symbols had
 been defined (which is much faster).  The doc strings of all the
-affected function has been updated.  'find-function-source-path' was
+affected function have been updated.  'find-function-source-path' was
 still being used by 'find-library' and related commands, so the
-variable has been renamed to 'find-library-source-path', and
+user option has been renamed to 'find-library-source-path', and
 'find-function-source-path' is now an obsolete variable alias.
 
 ---
@@ -4129,6 +4097,10 @@ Parse a string as a mail address-like string.
 ---
 ** New function 'make-separator-line'.
 Make a string appropriate for usage as a visual separator line.
+
++++
+** New function 'num-processors'.
+Return the number of processors on the system.
 
 +++
 ** New function 'object-intervals'.

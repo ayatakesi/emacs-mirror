@@ -1026,7 +1026,7 @@ evaluation of BODY."
          (shorthand-sname (format "s-%s" gsym))
          (expected (intern (format "shorthand-longhand-%s" gsym))))
     (cl-assert (not (intern-soft shorthand-sname)))
-    (should (equal (let ((elisp-shorthands
+    (should (equal (let ((read-symbol-shorthands
                           '(("s-" . "shorthand-longhand-"))))
                      (with-temp-buffer
                        (insert shorthand-sname)
@@ -1040,7 +1040,7 @@ evaluation of BODY."
          (shorthand-sname (format "s-%s" gsym))
          (expected (intern (format "shorthand-longhand-%s" gsym))))
     (cl-assert (not (intern-soft shorthand-sname)))
-    (should (equal (let ((elisp-shorthands
+    (should (equal (let ((read-symbol-shorthands
                           '(("s-" . "shorthand-longhand-"))))
                      (car (read-from-string shorthand-sname)))
                    expected))
@@ -1092,6 +1092,17 @@ evaluation of BODY."
     (should-not (intern-soft "elisp--foo-test4---"))
     (should (= 84 (funcall (intern-soft "f-test4---"))))
     (should (unintern "f-test4---"))))
+
+(ert-deftest elisp-dont-shadow-punctuation-only-symbols ()
+  (let* ((shorthanded-form '(/= 42 (-foo 42)))
+         (expected-longhand-form '(/= 42 (fooey-foo 42)))
+         (observed (let ((read-symbol-shorthands
+                          '(("-" . "fooey-"))))
+                     (car (read-from-string
+                           (with-temp-buffer
+                             (print shorthanded-form (current-buffer))
+                             (buffer-string)))))))
+    (should (equal observed expected-longhand-form))))
 
 (ert-deftest test-cl-flet-indentation ()
   :expected-result :failed              ; FIXME: bug#9622
