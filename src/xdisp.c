@@ -33644,7 +33644,13 @@ note_mouse_highlight (struct frame *f, int x, int y)
   if (EQ (window, f->tab_bar_window))
     {
       note_tab_bar_highlight (f, x, y);
-      return;
+      if (tab_bar__dragging_in_progress)
+	{
+	  cursor = FRAME_OUTPUT_DATA (f)->hand_cursor;
+	  goto set_cursor;
+	}
+      else
+	return;
     }
 #endif
 
@@ -35773,6 +35779,10 @@ may be more familiar to users.  */);
 When nil, mouse-movement events will not be generated as long as the
 mouse stays within the extent of a single glyph (except for images).  */);
   mouse_fine_grained_tracking = false;
+
+  DEFVAR_BOOL ("tab-bar--dragging-in-progress", tab_bar__dragging_in_progress,
+    doc: /* Non-nil when maybe dragging tab bar item.  */);
+  tab_bar__dragging_in_progress = false;
 
   DEFVAR_BOOL ("redisplay-skip-initial-frame", redisplay_skip_initial_frame,
     doc: /* Non-nil to skip redisplay in initial frame.
