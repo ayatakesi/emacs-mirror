@@ -65,13 +65,10 @@
 ;; * For non-lossy rotation of JPEG images, the JpegTRAN program is
 ;; needed.
 ;;
-;; * For `image-dired-get-exif-data' and `image-dired-set-exif-data' to work,
-;; the command line tool `exiftool' is needed.  It can be found here:
-;; https://exiftool.org/.  These two functions are, among other
-;; things, used for writing comments to image files using
-;; `image-dired-thumbnail-set-image-description' and to create
-;; "unique" file names using `image-dired-get-exif-file-name' (used by
-;; `image-dired-copy-with-exif-file-name').
+;; * For `image-dired-set-exif-data' to work, the command line tool `exiftool' is
+;; needed.  It can be found here: https://exiftool.org/.  This
+;; function is, among other things, used for writing comments to
+;; image files using `image-dired-thumbnail-set-image-description'.
 ;;
 ;;
 ;; USAGE
@@ -149,6 +146,7 @@
 ;;; Code:
 
 (require 'dired)
+(require 'exif)
 (require 'image-mode)
 (require 'widget)
 
@@ -378,21 +376,6 @@ which is replaced by the tag value."
   :version "26.1"
   :type '(repeat (string :tag "Argument")))
 
-(defcustom image-dired-cmd-read-exif-data-program
-  "exiftool"
-  "Program used to read EXIF data to image.
-Used together with `image-dired-cmd-read-exif-data-options'."
-  :type 'file)
-
-(defcustom image-dired-cmd-read-exif-data-options
-  '("-s" "-s" "-s" "-%t" "%f")
-  "Arguments of command used to read EXIF data.
-Used with `image-dired-cmd-read-exif-data-program'.
-Available format specifiers are: %f which is replaced
-by the image file name and %t which is replaced by the tag name."
-  :version "26.1"
-  :type '(repeat (string :tag "Argument")))
-
 (defcustom image-dired-gallery-hidden-tags
   (list "private" "hidden" "pending")
   "List of \"hidden\" tags.
@@ -560,11 +543,7 @@ Create the thumbnails directory if it does not exist."
 			   (file-attribute-modification-time
 			    (file-attributes file))))
       (image-dired-create-thumb file thumb-file))
-    (create-image thumb-file)
-;;     (list 'image :type 'jpeg
-;;           :file thumb-file
-;; 	  :relief image-dired-thumb-relief :margin image-dired-thumb-margin)
-    ))
+    (create-image thumb-file)))
 
 (defun image-dired-insert-thumbnail (file original-file-name
                                      associated-dired-buffer)
@@ -573,10 +552,7 @@ Add text properties ORIGINAL-FILE-NAME and ASSOCIATED-DIRED-BUFFER."
   (let (beg end)
     (setq beg (point))
     (image-dired-insert-image file
-                        ;; TODO: this should depend on the real file type
-                        (if (memq image-dired-thumbnail-storage
-                                  '(standard standard-large))
-                            'png 'jpeg)
+                        (image-type-from-file-header file)
                         image-dired-thumb-relief
                         image-dired-thumb-margin)
     (setq end (point))
@@ -2063,8 +2039,8 @@ YYYY_MM_DD_HH_MM_DD_ORIG_FILE_NAME.jpg.  Used from
                     "%Y:%m:%d %H:%M:%S"
                     (file-attribute-modification-time
                      (file-attributes (expand-file-name file)))))
-      (setq data (image-dired-get-exif-data (expand-file-name file)
-                                            "DateTimeOriginal")))
+      (setq data (exif-field 'date-time (exif-parse-file
+                                         (expand-file-name file)))))
     (while (string-match "[ :]" data)
       (setq data (replace-match "_" nil nil data)))
     (format "%s%s%s" data
@@ -2081,7 +2057,7 @@ default value at the prompt."
   (if (not (image-dired-image-at-point-p))
       (message "No thumbnail at point")
     (let* ((file (image-dired-original-file-name))
-           (old-value (image-dired-get-exif-data file "ImageDescription")))
+           (old-value (or (exif-field 'description (exif-parse-file file)) "")))
       (if (eq 0
               (image-dired-set-exif-data file "ImageDescription"
                                    (read-string "Value of ImageDescription: "
@@ -2101,30 +2077,6 @@ default value at the prompt."
     (apply #'call-process image-dired-cmd-write-exif-data-program nil nil nil
            (mapcar (lambda (arg) (format-spec arg spec))
                    image-dired-cmd-write-exif-data-options))))
-
-(defun image-dired-get-exif-data (file tag-name)
-  "From FILE, return EXIF tag TAG-NAME."
-  (image-dired--check-executable-exists
-   'image-dired-cmd-read-exif-data-program)
-  (let ((buf (get-buffer-create "*image-dired-get-exif-data*"))
-        (spec (list (cons ?f file) (cons ?t tag-name)))
-        tag-value)
-    (with-current-buffer buf
-      (delete-region (point-min) (point-max))
-      (if (not (eq (apply #'call-process image-dired-cmd-read-exif-data-program
-                          nil t nil
-                          (mapcar
-                           (lambda (arg) (format-spec arg spec))
-                           image-dired-cmd-read-exif-data-options))
-                   0))
-          (error "Could not get EXIF tag")
-        (goto-char (point-min))
-        ;; Clean buffer from newlines and carriage returns before
-        ;; getting final info
-        (while (search-forward-regexp "[\n\r]" nil t)
-          (replace-match "" nil t))
-        (setq tag-value (buffer-substring (point-min) (point-max)))))
-    tag-value))
 
 (defun image-dired-copy-with-exif-file-name ()
   "Copy file with unique name to main image directory.
@@ -2695,6 +2647,50 @@ tags to their respective image file.  Internal function used by
              tag-list (split-string tag-string ","))
        (dolist (tag tag-list)
          (push (cons file tag) lst))))))
+
+;;;; Obsolete
+
+(defcustom image-dired-cmd-read-exif-data-program "exiftool"
+  "Program used to read EXIF data to image.
+Used together with `image-dired-cmd-read-exif-data-options'."
+  :type 'file)
+(make-obsolete-variable 'image-dired-cmd-read-exif-data-program
+                        "use `exif-parse-file' and `exif-field' instead." "29.1")
+
+(defcustom image-dired-cmd-read-exif-data-options '("-s" "-s" "-s" "-%t" "%f")
+  "Arguments of command used to read EXIF data.
+Used with `image-dired-cmd-read-exif-data-program'.
+Available format specifiers are: %f which is replaced
+by the image file name and %t which is replaced by the tag name."
+  :version "26.1"
+  :type '(repeat (string :tag "Argument")))
+(make-obsolete-variable 'image-dired-cmd-read-exif-data-options
+                        "use `exif-parse-file' and `exif-field' instead." "29.1")
+
+(defun image-dired-get-exif-data (file tag-name)
+  "From FILE, return EXIF tag TAG-NAME."
+  (declare (obsolete "use `exif-parse-file' and `exif-field' instead."  "29.1"))
+  (image-dired--check-executable-exists
+   'image-dired-cmd-read-exif-data-program)
+  (let ((buf (get-buffer-create "*image-dired-get-exif-data*"))
+        (spec (list (cons ?f file) (cons ?t tag-name)))
+        tag-value)
+    (with-current-buffer buf
+      (delete-region (point-min) (point-max))
+      (if (not (eq (apply #'call-process image-dired-cmd-read-exif-data-program
+                          nil t nil
+                          (mapcar
+                           (lambda (arg) (format-spec arg spec))
+                           image-dired-cmd-read-exif-data-options))
+                   0))
+          (error "Could not get EXIF tag")
+        (goto-char (point-min))
+        ;; Clean buffer from newlines and carriage returns before
+        ;; getting final info
+        (while (search-forward-regexp "[\n\r]" nil t)
+          (replace-match "" nil t))
+        (setq tag-value (buffer-substring (point-min) (point-max)))))
+    tag-value))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;; TEST-SECTION ;;;;;;;;;;;

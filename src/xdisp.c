@@ -10847,17 +10847,42 @@ include the height of any of these, if present, in the return value.  */)
   if (y > max_y)
     y = max_y;
 
-  if (EQ (mode_lines, Qtab_line) || EQ (mode_lines, Qt))
-    /* Re-add height of tab-line as requested.  */
-    y = y + WINDOW_TAB_LINE_HEIGHT (w);
+  if ((EQ (mode_lines, Qtab_line) || EQ (mode_lines, Qt))
+      && window_wants_tab_line (w))
+    /* Add height of tab-line as requested.  */
+    {
+      Lisp_Object window_tab_line_format
+	= window_parameter (w, Qtab_line_format);
 
-  if (EQ (mode_lines, Qheader_line) || EQ (mode_lines, Qt))
-    /* Re-add height of header-line as requested.  */
-    y = y + WINDOW_HEADER_LINE_HEIGHT (w);
+      y = y + display_mode_line (w, TAB_LINE_FACE_ID,
+				 NILP (window_tab_line_format)
+				 ? BVAR (current_buffer, tab_line_format)
+				 : window_tab_line_format);
+    }
 
-  if (EQ (mode_lines, Qmode_line) || EQ (mode_lines, Qt))
-    /* Add height of mode-line as requested.  */
-    y = y + WINDOW_MODE_LINE_HEIGHT (w);
+  if ((EQ (mode_lines, Qheader_line) || EQ (mode_lines, Qt))
+      && window_wants_header_line (w))
+    {
+      Lisp_Object window_header_line_format
+	= window_parameter (w, Qheader_line_format);
+
+      y = y + display_mode_line (w, HEADER_LINE_FACE_ID,
+				 NILP (window_header_line_format)
+				 ? BVAR (current_buffer, header_line_format)
+				 : window_header_line_format);
+    }
+
+  if ((EQ (mode_lines, Qmode_line) || EQ (mode_lines, Qt))
+      && window_wants_mode_line (w))
+    {
+      Lisp_Object window_mode_line_format
+	= window_parameter (w, Qmode_line_format);
+
+      y = y + display_mode_line (w, CURRENT_MODE_LINE_FACE_ID (w),
+				 NILP (window_mode_line_format)
+				 ? BVAR (current_buffer, mode_line_format)
+				 : window_mode_line_format);
+    }
 
   bidi_unshelve_cache (itdata, false);
 
@@ -13867,12 +13892,17 @@ note_tab_bar_highlight (struct frame *f, int x, int y)
 
   bool mouse_down_p = false;
 #ifndef HAVE_NS
-  /* Mouse is down, but on different tab-bar item?  */
+  /* Mouse is down, but on different tab-bar item?  Or alternatively,
+     the mouse might've been pressed somewhere we don't know about,
+     and then have moved onto the tab bar.  In this case,
+     last_tab_bar_item is -1, so we DTRT and behave like other
+     programs by displaying the item as sunken. */
   Display_Info *dpyinfo = FRAME_DISPLAY_INFO (f);
   mouse_down_p = (gui_mouse_grabbed (dpyinfo)
 		  && f == dpyinfo->last_mouse_frame);
 
-  if (mouse_down_p && f->last_tab_bar_item != prop_idx)
+  if (mouse_down_p && f->last_tab_bar_item != prop_idx
+      && f->last_tab_bar_item != -1)
     return;
 #endif
   draw = mouse_down_p ? DRAW_IMAGE_SUNKEN : DRAW_IMAGE_RAISED;
@@ -33787,6 +33817,14 @@ note_mouse_highlight (struct frame *f, int x, int y)
 	}
       else
 	return;
+    }
+  else
+    {
+      /* The mouse might have pressed into the tab bar, but might
+	 also have been released outside the tab bar, so
+	 f->last_tab_bar_item must be reset, in order to make sure the
+	 item can be still highlighted again in the future.  */
+      f->last_tab_bar_item = -1;
     }
 #endif
 
