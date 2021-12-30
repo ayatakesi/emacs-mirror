@@ -6135,7 +6135,7 @@ comment at the start of cc-engine.el for more info."
 	  (setq s (cons -1 (cdr s))))
 	 ((and (equal match ",")
 	       (eq (car s) -1)))	; at "," in "class foo : bar, ..."
-	 ((member match '(";" "," ")"))
+	 ((member match '(";" "*" "," "("))
 	  (when (and s (cdr s) (<= (car s) 0))
 	    (setq s (cdr s))))
 	 ((c-keyword-member kwd-sym 'c-flat-decl-block-kwds)
@@ -9978,7 +9978,12 @@ This function might do hidden buffer changes."
 		(save-excursion
 		  (goto-char type-start)
 		  (let ((c-promote-possible-types t))
-		    (c-forward-type)))))
+		    (c-forward-type))))
+
+	      ;; Signal a type declaration for "struct foo {".
+	      (when (and backup-at-type-decl
+			 (eq (char-after) ?{))
+		(setq at-type-decl t)))
 
 	    (setq backup-at-type at-type
 		  backup-type-start type-start

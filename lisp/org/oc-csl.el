@@ -283,7 +283,8 @@ Label is in match group 1.")
 ;;; Internal functions
 (defun org-cite-csl--barf-without-citeproc ()
   "Raise an error if Citeproc library is not loaded."
-  (unless (featurep 'citeproc) "Citeproc library is not loaded"))
+  (unless (featurep 'citeproc)
+    (error "Citeproc library is not loaded")))
 
 (defun org-cite-csl--note-style-p (info)
   "Non-nil when bibliography style implies wrapping citations in footnotes.
@@ -487,21 +488,25 @@ INFO is the export state, as a property list."
     (let ((global-prefix (org-element-property :prefix citation)))
       (when global-prefix
         (let* ((first (car cites))
-               (prefix (org-element-property :prefix first)))
-          (org-element-put-property
-           first :prefix (org-cite-concat global-prefix prefix)))))
+               (prefix-item (assq 'prefix first)))
+          (setcdr prefix-item
+                  (concat (org-element-interpret-data global-prefix)
+                          " "
+                          (cdr prefix-item))))))
     ;; Global suffix is appended to the suffix of the last reference.
     (let ((global-suffix (org-element-property :suffix citation)))
       (when global-suffix
         (let* ((last (org-last cites))
-               (suffix (org-element-property :suffix last)))
-          (org-element-put-property
-           last :suffix (org-cite-concat suffix global-suffix)))))
+               (suffix-item (assq 'suffix last)))
+          (setcdr suffix-item
+                  (concat (cdr suffix-item)
+                          " "
+                          (org-element-interpret-data global-suffix))))))
     ;; Check if CITATION needs wrapping, i.e., it should be wrapped in
     ;; a footnote, but isn't yet.
     (when (and (not footnote) (org-cite-csl--note-style-p info))
       (org-cite-adjust-note citation info)
-      (org-cite-wrap-citation citation info))
+      (setq footnote (org-cite-wrap-citation citation info)))
     ;; Return structure.
     (apply #'citeproc-citation-create
            `(:note-index
@@ -600,10 +605,10 @@ property list."
     (with-temp-buffer
       (save-excursion (insert output))
       (when (search-forward "\\begin{document}" nil t)
-        ;; Ensure that \citeprocitem is defined for citeproc-el
+        (goto-char (match-beginning 0))
+        ;; Ensure that \citeprocitem is defined for citeproc-el.
         (insert "\\makeatletter\n\\newcommand{\\citeprocitem}[2]{\\hyper@linkstart{cite}{citeproc_bib_item_#1}#2\\hyper@linkend}\n\\makeatother\n\n")
         ;; Ensure there is a \usepackage{hanging} somewhere or add one.
-        (goto-char (match-beginning 0))
         (let ((re (rx "\\usepackage" (opt "[" (*? nonl) "]") "{hanging}")))
           (unless (re-search-backward re nil t)
             (insert "\\usepackage[notquote]{hanging}\n"))))

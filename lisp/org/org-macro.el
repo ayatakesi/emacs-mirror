@@ -173,7 +173,7 @@ a file, \"input-file\" and \"modification-time\"."
                              modtime))))))))
 	 ;; Install generic macros.
 	 '(("keyword" . (lambda (arg1 &rest _)
-                          (org-macro--find-keyword-value arg1)))
+                          (org-macro--find-keyword-value arg1 t)))
 	   ("n" . (lambda (&optional arg1 arg2 &rest _)
                     (org-macro--counter-increment arg1 arg2)))
            ("property" . (lambda (arg1 &optional arg2 &rest _)
@@ -368,7 +368,7 @@ Return value as a string."
 	    date)
 	(unwind-protect
 	    (progn
-	      (vc-call print-log file buf nil nil 1)
+	      (vc-call print-log (list file) buf nil nil 1)
 	      (with-current-buffer buf
 		(vc-exec-after
 		 (lambda ()

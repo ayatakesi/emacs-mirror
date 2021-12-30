@@ -475,7 +475,8 @@ adjust_glyph_matrix (struct window *w, struct glyph_matrix *matrix, int x, int y
 		= row->glyphs[TEXT_AREA] + dim.width - left - right;
 	      /* Leave room for a border glyph.  */
 	      if (!FRAME_WINDOW_P (XFRAME (w->frame))
-		  && !WINDOW_RIGHTMOST_P (w))
+		  && !WINDOW_RIGHTMOST_P (w)
+		  && right > 0)
 		row->glyphs[RIGHT_MARGIN_AREA] -= 1;
 	      row->glyphs[LAST_AREA]
 		= row->glyphs[LEFT_MARGIN_AREA] + dim.width;
@@ -1033,7 +1034,7 @@ copy_row_except_pointers (struct glyph_row *to, struct glyph_row *from)
 {
   enum { off = offsetof (struct glyph_row, x) };
 
-  memcpy (&to->x, &from->x, sizeof *to - off);
+  memcpy ((char *) to + off, (char *) from + off, sizeof *to - off);
 }
 
 
@@ -1148,7 +1149,8 @@ prepare_desired_row (struct window *w, struct glyph_row *row, bool mode_line_p)
 	  row->glyphs[RIGHT_MARGIN_AREA] = row->glyphs[LAST_AREA] - right;
 	  /* Leave room for a border glyph.  */
 	  if (!FRAME_WINDOW_P (XFRAME (w->frame))
-	      && !WINDOW_RIGHTMOST_P (w))
+	      && !WINDOW_RIGHTMOST_P (w)
+	      && right > 0)
 	    row->glyphs[RIGHT_MARGIN_AREA] -= 1;
 	}
     }

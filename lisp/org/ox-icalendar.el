@@ -280,6 +280,7 @@ re-read the iCalendar file.")
 		     (footnote-definition . ignore)
 		     (footnote-reference . ignore)
 		     (headline . org-icalendar-entry)
+                     (inner-template . org-icalendar-inner-template)
 		     (inlinetask . ignore)
 		     (planning . ignore)
 		     (section . ignore)
@@ -805,6 +806,11 @@ END:VALARM\n"
 
 ;;;; Template
 
+(defun org-icalendar-inner-template (contents _)
+  "Return document body string after iCalendar conversion.
+CONTENTS is the transcoded contents string."
+  contents)
+
 (defun org-icalendar-template (contents info)
   "Return complete document string after iCalendar conversion.
 CONTENTS is the transcoded contents string.  INFO is a plist used
@@ -882,8 +888,8 @@ Return ICS file name."
     (org-export-to-file 'icalendar outfile
       async subtreep visible-only body-only
       '(:ascii-charset utf-8 :ascii-links-to-notes nil)
-      (lambda (file)
-	(run-hook-with-args 'org-icalendar-after-save-hook file) nil))))
+      '(lambda (file)
+	 (run-hook-with-args 'org-icalendar-after-save-hook file) nil))))
 
 ;;;###autoload
 (defun org-icalendar-export-agenda-files (&optional async)

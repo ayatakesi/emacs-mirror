@@ -638,6 +638,24 @@ in the current buffer.  Positions include leading \"@\" character."
       (re-search-forward org-element-citation-key-re end t)
       (cons (match-beginning 0) (match-end 0)))))
 
+(defun org-cite-main-affixes (citation)
+  "Return main affixes for CITATION object.
+
+Some export back-ends only support a single pair of affixes per
+citation, even if it contains multiple keys.  This function
+decides what affixes are the most appropriate.
+
+Return a pair (PREFIX . SUFFIX) where PREFIX and SUFFIX are
+parsed data."
+  (let ((source
+         ;; When there are multiple references, use global affixes.
+         ;; Otherwise, local affixes have priority.
+         (pcase (org-cite-get-references citation)
+           (`(,reference) reference)
+           (_ citation))))
+    (cons (org-element-property :prefix source)
+          (org-element-property :suffix source))))
+
 (defun org-cite-supported-styles (&optional processors)
   "List of supported citation styles and variants.
 
@@ -872,7 +890,9 @@ When non-nil, the return value if the footnote container."
 INFO is the export state, as a property list.
 
 White space before the citation, if any, are removed.  The parse tree is
-modified by side-effect."
+modified by side-effect.
+
+Return newly created footnote object."
   (let ((footnote
          (list 'footnote-reference
                (list :label nil
@@ -1121,17 +1141,14 @@ and must return either a string, an object, or a secondary string."
 
 
 ;;; Internal interface with fontification (activate capability)
-(defun org-cite-fontify-default (datum)
-  "Fontify DATUM with `org-cite' and `org-cite-key' face.
-DATUM is a citation object, or a citation reference.  In any case, apply
-`org-cite' face on the whole citation, and `org-cite-key' face on each key."
-  (let* ((cite (if (eq 'citation-reference (org-element-type datum))
-                   (org-element-property :parent datum)
-                 datum))
-         (beg (org-element-property :begin cite))
-         (end (org-with-point-at (org-element-property :end cite)
-                (skip-chars-backward " \t")
-                (point))))
+(defun org-cite-fontify-default (cite)
+  "Fontify CITE with `org-cite' and `org-cite-key' faces.
+CITE is a citation object.  The function applies `org-cite' face
+on the whole citation, and `org-cite-key' face on each key."
+  (let ((beg (org-element-property :begin cite))
+        (end (org-with-point-at (org-element-property :end cite)
+               (skip-chars-backward " \t")
+               (point))))
     (add-text-properties beg end '(font-lock-multiline t))
     (add-face-text-property beg end 'org-cite)
     (dolist (reference (org-cite-get-references cite))
@@ -1143,16 +1160,20 @@ DATUM is a citation object, or a citation reference.  In any case, apply
   "Activate citations from up to LIMIT buffer position.
 Each citation encountered is activated using the appropriate function
 from the processor set in `org-cite-activate-processor'."
-  (let ((name org-cite-activate-processor))
-    (let ((activate
-           (or (and name
-                    (org-cite-processor-has-capability-p name 'activate)
-                    (org-cite-processor-activate (org-cite--get-processor name)))
-               #'org-cite-fontify-default)))
-      (while (re-search-forward org-element-citation-prefix-re limit t)
-        (let ((cite (org-with-point-at (match-beginning 0)
-                      (org-element-citation-parser))))
-          (when cite (save-excursion (funcall activate cite))))))))
+  (let* ((name org-cite-activate-processor)
+         (activate
+          (or (and name
+                   (org-cite-processor-has-capability-p name 'activate)
+                   (org-cite-processor-activate (org-cite--get-processor name)))
+              #'org-cite-fontify-default)))
+    (when (re-search-forward org-element-citation-prefix-re limit t)
+      (let ((cite (org-with-point-at (match-beginning 0)
+                    (org-element-citation-parser))))
+        (when cite
+          (funcall activate cite)
+          ;; Move after cite object and make sure to return
+          ;; a non-nil value.
+          (goto-char (org-element-property :end cite)))))))
 
 
 ;;; Internal interface with Org Export library (export capability)
@@ -1519,7 +1540,7 @@ The generated function inserts or edit a citation at point.  More specifically,
 
   On a citation reference:
 
-    - on the prefix or right before th \"@\" character, insert a new reference
+    - on the prefix or right before the \"@\" character, insert a new reference
       before the current one,
     - on the suffix, insert it after the reference,
     - otherwise, update the cite key, preserving both affixes.
