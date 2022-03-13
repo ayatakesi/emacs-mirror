@@ -1,6 +1,6 @@
 ;;; window.el --- GNU Emacs window commands aside from those written in C  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985, 1989, 1992-1994, 2000-2021 Free Software
+;; Copyright (C) 1985, 1989, 1992-1994, 2000-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -6410,7 +6410,11 @@ windows can get as small as `window-safe-min-height' and
 	(window--state-put-2 ignore pixelwise))
       (while window-state-put-stale-windows
 	(let ((window (pop window-state-put-stale-windows)))
-	  (when (eq (window-deletable-p window) t)
+          ;; Avoid that 'window-deletable-p' throws an error if window
+          ;; was already deleted when exiting 'with-temp-buffer' above
+          ;; (Bug#54028).
+	  (when (and (window-valid-p window)
+                     (eq (window-deletable-p window) t))
 	    (delete-window window))))
       (window--check frame))))
 

@@ -1,6 +1,6 @@
 Known Problems with GNU Emacs
 
-Copyright (C) 1987-1989, 1993-1999, 2001-2021 Free Software Foundation,
+Copyright (C) 1987-1989, 1993-1999, 2001-2022 Free Software Foundation,
 Inc.
 See the end of the file for license conditions.
 
@@ -1268,6 +1268,13 @@ or shifting out from X and back again usually cures it (i.e. Ctrl-Alt-F1
 and then Alt-F7).  A bug for it is here:
 https://bugs.launchpad.net/ubuntu/+source/metacity/+bug/231034.
 Note that a permanent fix seems to be to disable "assistive technologies".
+
+*** Enlightenment: Frames not redrawn after switching virtual desktops
+
+With Enlightenment version 0.25, Emacs frames may no be redrawn orderly
+after switching back from another virtual desktop.  Setting the variable
+'x-set-frame-visibility-more-laxly' to one of 'focus-in', 'expose' or
+'t' should fix this.
 
 *** Gnome: Emacs receives input directly from the keyboard, bypassing XIM.
 

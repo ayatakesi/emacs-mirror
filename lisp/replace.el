@@ -1,6 +1,6 @@
 ;;; replace.el --- replace commands for Emacs -*- lexical-binding: t -*-
 
-;; Copyright (C) 1985-1987, 1992, 1994, 1996-1997, 2000-2021 Free
+;; Copyright (C) 1985-1987, 1992, 1994, 1996-1997, 2000-2022 Free
 ;; Software Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -1413,10 +1413,15 @@ To return to ordinary Occur mode, use \\[occur-cease-edit]."
                             (length s1)))))
                      (prefix-len (funcall common-prefix buf-str text))
                      (suffix-len (funcall common-prefix
-                                          (reverse buf-str) (reverse text))))
+                                          (reverse (substring
+                                                    buf-str prefix-len))
+                                          (reverse (substring
+                                                    text prefix-len)))))
                 (setq beg-pos (+ beg-pos prefix-len))
                 (setq end-pos (- end-pos suffix-len))
-                (setq text (substring text prefix-len (- suffix-len)))
+                (setq text (substring text prefix-len
+                                      (and (not (zerop suffix-len))
+                                           (- suffix-len))))
                 (delete-region beg-pos end-pos)
                 (goto-char beg-pos)
                 (insert text)))

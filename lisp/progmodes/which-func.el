@@ -1,6 +1,6 @@
 ;;; which-func.el --- print current function in mode line  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1994-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1994-2022 Free Software Foundation, Inc.
 
 ;; Author:   Alex Rezinsky <alexr@msil.sps.mot.com>
 ;;           (doesn't seem to be responsive any more)
@@ -216,7 +216,7 @@ It creates the Imenu index for the buffer, if necessary."
      (setq which-func-mode nil))))
 
 (defun which-func-update ()
-  "Update the Which-Function mode display for all windows."
+  "Update the Which-Function mode display in the current window."
   ;; (walk-windows 'which-func-update-1 nil 'visible))
   (let ((non-essential t))
     (which-func-update-1 (selected-window))))

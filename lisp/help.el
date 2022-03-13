@@ -1,6 +1,6 @@
 ;;; help.el --- help commands for Emacs  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1985-1986, 1993-1994, 1998-2021 Free Software
+;; Copyright (C) 1985-1986, 1993-1994, 1998-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -1803,8 +1803,8 @@ Return VALUE."
 ;;     window to an arbitrary buffer position.
 (defmacro with-help-window (buffer-or-name &rest body)
   "Evaluate BODY, send output to BUFFER-OR-NAME and show in a help window.
-This construct is like `with-temp-buffer-window' but unlike that
-puts the buffer specified by BUFFER-OR-NAME in `help-mode' and
+This construct is like `with-temp-buffer-window', which see, but unlike
+that, it puts the buffer specified by BUFFER-OR-NAME in `help-mode' and
 displays a message about how to delete the help window when it's no
 longer needed.  The help window will be selected if
 `help-window-select' is non-nil.

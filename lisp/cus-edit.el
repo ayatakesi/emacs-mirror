@@ -1,6 +1,6 @@
 ;;; cus-edit.el --- tools for customizing Emacs and Lisp packages -*- lexical-binding:t -*-
 ;;
-;; Copyright (C) 1996-1997, 1999-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1996-1997, 1999-2022 Free Software Foundation, Inc.
 ;;
 ;; Author: Per Abrahamsen <abraham@dina.kvl.dk>
 ;; Maintainer: emacs-devel@gnu.org
@@ -1531,12 +1531,12 @@ If TYPE is `groups', include only groups."
 ;;;###autoload
 (defun custom-prompt-customize-unsaved-options ()
   "Prompt user to customize any unsaved customization options.
-Return non-nil if user chooses to customize, for use in
+Return nil if user chooses to customize, for use in
 `kill-emacs-query-functions'."
   (not (and (custom-unsaved-options)
-	    (yes-or-no-p "Some customized options have not been saved; Examine? ")
-	    (customize-unsaved)
-	    t)))
+	    (yes-or-no-p
+             "Some customized options have not been saved; Examine? ")
+	    (progn (customize-unsaved) t))))
 
 ;;; Buffer.
 

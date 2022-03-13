@@ -1,6 +1,6 @@
 ;;; tramp-sh.el --- Tramp access functions for (s)sh-like connections  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1998-2021 Free Software Foundation, Inc.
+;; Copyright (C) 1998-2022 Free Software Foundation, Inc.
 
 ;; (copyright statements below in code to be updated with the above notice)
 
@@ -739,7 +739,7 @@ characters need to be doubled.")
 (defconst tramp-perl-encode
   "%p -e '
 # This script contributed by Juanma Barranquero <lektu@terra.es>.
-# Copyright (C) 2002-2021 Free Software Foundation, Inc.
+# Copyright (C) 2002-2022 Free Software Foundation, Inc.
 use strict;
 
 my %%trans = do {
@@ -778,7 +778,7 @@ characters need to be doubled.")
 (defconst tramp-perl-decode
   "%p -e '
 # This script contributed by Juanma Barranquero <lektu@terra.es>.
-# Copyright (C) 2002-2021 Free Software Foundation, Inc.
+# Copyright (C) 2002-2022 Free Software Foundation, Inc.
 use strict;
 
 my %%trans = do {
@@ -4753,36 +4753,33 @@ Goes through the list `tramp-inline-compress-commands'."
    (t (setq tramp-ssh-controlmaster-options "")
       (let ((case-fold-search t))
 	(ignore-errors
-	  (when (executable-find "ssh")
-	    (with-tramp-progress-reporter
-		vec 4 "Computing ControlMaster options"
-	      (with-temp-buffer
-		(tramp-call-process vec "ssh" nil t nil "-o" "ControlMaster")
-		(goto-char (point-min))
-		(when (search-forward-regexp "missing.+argument" nil t)
-		  (setq tramp-ssh-controlmaster-options
-			"-o ControlMaster=auto")))
-	      (unless (zerop (length tramp-ssh-controlmaster-options))
-		(with-temp-buffer
-		  ;; We use a non-existing IP address, in order to
-		  ;; avoid useless connections, and DNS timeouts.
-		  ;; Setting ConnectTimeout is needed since OpenSSH 7.
-		  (tramp-call-process
-		   vec "ssh" nil t nil
-		   "-o" "ConnectTimeout=1" "-o" "ControlPath=%C" "0.0.0.1")
-		  (goto-char (point-min))
+	  (with-tramp-progress-reporter
+	      vec 4 "Computing ControlMaster options"
+	    ;; We use a non-existing IP address, in order to avoid
+	    ;; useless connections, and DNS timeouts.
+	    (when (zerop
+		   (tramp-call-process
+		    vec "ssh" nil nil nil
+		    "-G" "-o" "ControlMaster=auto" "0.0.0.1"))
+	      (setq tramp-ssh-controlmaster-options
+		    "-o ControlMaster=auto")
+	      (if (zerop
+		   (tramp-call-process
+		    vec "ssh" nil nil nil
+		    "-G" "-o" "ControlPath='tramp.%C'" "0.0.0.1"))
 		  (setq tramp-ssh-controlmaster-options
 			(concat tramp-ssh-controlmaster-options
-				(if (search-forward-regexp "unknown.+key" nil t)
-				    " -o ControlPath='tramp.%%r@%%h:%%p'"
-				  " -o ControlPath='tramp.%%C'"))))
-		(with-temp-buffer
-		  (tramp-call-process vec "ssh" nil t nil "-o" "ControlPersist")
-		  (goto-char (point-min))
-		  (when (search-forward-regexp "missing.+argument" nil t)
-		    (setq tramp-ssh-controlmaster-options
-			  (concat tramp-ssh-controlmaster-options
-				  " -o ControlPersist=no")))))))))
+				" -o ControlPath='tramp.%%C'"))
+		(setq tramp-ssh-controlmaster-options
+		      (concat tramp-ssh-controlmaster-options
+			      " -o ControlPath='tramp.%%r@%%h:%%p'")))
+	      (when (zerop
+		     (tramp-call-process
+		      vec "ssh" nil nil nil
+		      "-G" "-o" "ControlPersist=no" "0.0.0.1"))
+		(setq tramp-ssh-controlmaster-options
+		      (concat tramp-ssh-controlmaster-options
+			      " -o ControlPersist=no")))))))
       tramp-ssh-controlmaster-options)))
 
 (defun tramp-scp-strict-file-name-checking (vec)

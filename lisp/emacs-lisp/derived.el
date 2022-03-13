@@ -1,7 +1,7 @@
 ;;; derived.el --- allow inheritance of major modes  -*- lexical-binding: t; -*-
 ;; (formerly mode-clone.el)
 
-;; Copyright (C) 1993-1994, 1999, 2001-2021 Free Software Foundation,
+;; Copyright (C) 1993-1994, 1999, 2001-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Author: David Megginson (dmeggins@aix1.uottawa.ca)
@@ -409,7 +409,7 @@ the first time the mode is used."
       t
     (eval `(defvar ,(derived-mode-abbrev-table-name mode)
 	     (progn
-	       (define-abbrev-table (derived-mode-abbrev-table-name mode) nil)
+	       (define-abbrev-table (derived-mode-abbrev-table-name ',mode) nil)
 	       (make-abbrev-table))
 	     ,(format "Abbrev table for %s." mode)))))
 

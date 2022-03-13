@@ -1,5 +1,5 @@
 /* Composite sequence support.
-   Copyright (C) 2001-2021 Free Software Foundation, Inc.
+   Copyright (C) 2001-2022 Free Software Foundation, Inc.
    Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010, 2011
      National Institute of Advanced Industrial Science and Technology (AIST)
      Registration Number H14PRO021
@@ -2064,7 +2064,8 @@ The default value is the function `compose-chars-after'.  */);
 Use the command `auto-composition-mode' to change this variable.
 
 If this variable is a string, `auto-composition-mode' will be disabled in
-buffers displayed on a terminal whose type compares equal to this string.  */);
+buffers displayed on a terminal whose type, as reported by `tty-type',
+compares equal to that string.  */);
   Vauto_composition_mode = Qt;
 
   DEFVAR_LISP ("auto-composition-function", Vauto_composition_function,

@@ -1,6 +1,6 @@
 /* Display generation from window structure and buffer text.
 
-Copyright (C) 1985-1988, 1993-1995, 1997-2021 Free Software Foundation,
+Copyright (C) 1985-1988, 1993-1995, 1997-2022 Free Software Foundation,
 Inc.
 
 This file is part of GNU Emacs.
@@ -10016,7 +10016,8 @@ move_it_to (struct it *it, ptrdiff_t to_charpos, int to_x, int to_y, int to_vpos
 			 could have both positions after TO_CHARPOS or
 			 both positions before it, due to bidi
 			 reordering.)  */
-		      if (IT_CHARPOS (*it) != to_charpos
+		      if (to_charpos > 0
+			  && IT_CHARPOS (*it) != to_charpos
 			  && ((IT_CHARPOS (it_backup) > to_charpos)
 			      == (IT_CHARPOS (*it) > to_charpos)))
 			{
@@ -13508,11 +13509,15 @@ tab_bar_height (struct frame *f, int *n_rows, bool pixelwise)
                     0, 0, 0, STRING_MULTIBYTE (f->desired_tab_bar_string));
   it.paragraph_embedding = L2R;
 
+  clear_glyph_row (temp_row);
   while (!ITERATOR_AT_END_P (&it))
     {
-      clear_glyph_row (temp_row);
       it.glyph_row = temp_row;
       display_tab_bar_line (&it, -1);
+      /* If the tab-bar string includes newlines, get past it, because
+	 display_tab_bar_line doesn't.  */
+      if (ITERATOR_AT_END_OF_LINE_P (&it))
+	set_iterator_to_next (&it, true);
     }
   clear_glyph_row (temp_row);
 
@@ -13638,6 +13643,10 @@ redisplay_tab_bar (struct frame *f)
 	      extra -= h;
 	    }
 	  display_tab_bar_line (&it, height + h);
+	  /* If the tab-bar string includes newlines, get past it,
+	     because display_tab_bar_line doesn't.  */
+	  if (ITERATOR_AT_END_OF_LINE_P (&it))
+	    set_iterator_to_next (&it, true);
 	}
     }
   else
@@ -15851,6 +15860,14 @@ redisplay_internal (void)
       /* Point must be on the line that we have info recorded about.  */
       && PT >= CHARPOS (tlbufpos)
       && PT <= Z - CHARPOS (tlendpos)
+      /* FIXME: The following condition is only needed when
+	 significant parts of the buffer are hidden (e.g., under
+	 hs-minor-mode), but there doesn't seem to be a simple way of
+	 detecting that, so we always disable the one-line redisplay
+	 optimizations whenever display-line-numbers-mode is turned on
+	 in the buffer.  */
+      && (NILP (Vdisplay_line_numbers)
+	  || EQ (Vdisplay_line_numbers, Qvisual))
       /* All text outside that line, including its final newline,
 	 must be unchanged.  */
       && text_outside_line_unchanged_p (w, CHARPOS (tlbufpos),

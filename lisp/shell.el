@@ -1,6 +1,6 @@
 ;;; shell.el --- specialized comint.el for running the shell -*- lexical-binding: t -*-
 
-;; Copyright (C) 1988, 1993-1997, 2000-2021 Free Software Foundation,
+;; Copyright (C) 1988, 1993-1997, 2000-2022 Free Software Foundation,
 ;; Inc.
 
 ;; Author: Olin Shivers <shivers@cs.cmu.edu>
@@ -941,7 +941,7 @@ Environment variables are expanded, see function `substitute-in-file-name'."
       dir
     (if (file-name-absolute-p dir)
 	;; The name is absolute, so prepend the prefix.
-	(concat comint-file-name-prefix dir)
+	(concat comint-file-name-prefix (file-local-name dir))
       ;; For relative name we assume default-directory already has the prefix.
       (expand-file-name dir))))
 

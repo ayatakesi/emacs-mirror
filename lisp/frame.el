@@ -1,6 +1,6 @@
 ;;; frame.el --- multi-frame management independent of window systems  -*- lexical-binding:t -*-
 
-;; Copyright (C) 1993-1994, 1996-1997, 2000-2021 Free Software
+;; Copyright (C) 1993-1994, 1996-1997, 2000-2022 Free Software
 ;; Foundation, Inc.
 
 ;; Maintainer: emacs-devel@gnu.org
@@ -798,8 +798,9 @@ also select the new frame."
          (windows (unless no-windows
                     (window-state-get (frame-root-window frame))))
          (default-frame-alist
-           (seq-remove (lambda (elem) (eq (car elem) 'name))
-                       (frame-parameters frame)))
+          (seq-remove (lambda (elem)
+                        (memq (car elem) '(name parent-id)))
+                      (frame-parameters frame)))
          (new-frame (make-frame)))
     (when windows
       (window-state-put windows (frame-root-window new-frame) 'safe))
